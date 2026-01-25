@@ -148,11 +148,11 @@ RUN git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions \
 # ─────────────────────────────────────────────────────────────
 # CLAUDE CODE INSTALLATION
 # Using native installer (recommended by Anthropic)
-# Installs to ~/.claude/bin/claude with auto-updates
+# Installs to ~/.local/bin/claude with auto-updates
 # ─────────────────────────────────────────────────────────────
 RUN curl -fsSL https://claude.ai/install.sh | bash \
-    && echo 'export PATH="$HOME/.claude/bin:$PATH"' >> ~/.zshrc \
-    && echo 'export PATH="$HOME/.claude/bin:$PATH"' >> ~/.bashrc
+    && echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc \
+    && echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 
 # Create .config directory for Claude Code settings
 RUN mkdir -p /home/${USERNAME}/.config

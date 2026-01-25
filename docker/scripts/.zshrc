@@ -28,7 +28,7 @@ source $ZSH/oh-my-zsh.sh
 # Environment
 export EDITOR='vim'
 export LANG='en_US.UTF-8'
-export PATH="$HOME/.claude/bin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 
 # History configuration
 HISTFILE="$HOME/.zsh_history_dir/.zsh_history"
