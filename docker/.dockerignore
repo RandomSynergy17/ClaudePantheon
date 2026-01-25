@@ -1,0 +1,38 @@
+# ClaudePantheon Docker Ignore
+# Exclude files from build context to speed up builds and reduce image size
+
+# Data directory (should never be in build context)
+data/
+
+# Backup files
+backups/
+*.tar.gz
+*.backup
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Log files
+logs/
+*.log
+
+# Git
+.git
+.gitignore
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in image)
+*.md
+!README.md

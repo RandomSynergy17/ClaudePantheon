@@ -2,30 +2,72 @@
 # ║                    ClaudePantheon                         ║
 # ║     Persistent Claude Code Environment with Web Access    ║
 # ╚═══════════════════════════════════════════════════════════╝
-# 
-# A temple for your persistent Claude Code sessions
-# With ttyd web terminal, ohmyzsh, and MCP support
+#
+# Alpine-based Docker image providing:
+#   - Claude Code CLI with session persistence
+#   - Web terminal access via ttyd
+#   - Oh My Zsh with plugins
+#   - MCP (Model Context Protocol) support
+#   - Runtime user mapping (PUID/PGID)
+#   - Custom package installation without rebuild
+#
+# BUILD:
+#   docker compose build
+#   # or: docker build -t claudepantheon .
+#
+# DOCKERFILE SYNTAX REFERENCE:
+#   FROM      - Base image to build upon
+#   ARG       - Build-time variables (only available during build)
+#   ENV       - Runtime environment variables (persist in container)
+#   RUN       - Execute commands during build (creates new layer)
+#   COPY      - Copy files from build context into image
+#   USER      - Set user for subsequent commands
+#   WORKDIR   - Set working directory
+#   EXPOSE    - Document which ports the container listens on
+#   HEALTHCHECK - Define how Docker checks if container is healthy
+#   ENTRYPOINT - Command that runs when container starts
 
-FROM node:22-bookworm
+# ─────────────────────────────────────────────────────────────
+# BASE IMAGE
+# Node.js 22 on Alpine Linux (minimal footprint, ~50MB base)
+# ─────────────────────────────────────────────────────────────
+FROM node:22-alpine
 
+# Image metadata (visible in 'docker inspect')
 LABEL maintainer="Project Hospitality"
 LABEL description="ClaudePantheon - Persistent Claude Code environment with web terminal access"
 LABEL project="ClaudePantheon"
 
-# Build arguments
+# ─────────────────────────────────────────────────────────────
+# BUILD ARGUMENTS
+# Passed from docker-compose.yml build.args or --build-arg
+# Only available during build, not at runtime
+# ─────────────────────────────────────────────────────────────
 ARG USERNAME=claude
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-# Environment variables
-ENV DEBIAN_FRONTEND=noninteractive
+# ─────────────────────────────────────────────────────────────
+# ENVIRONMENT VARIABLES
+# Available at runtime in the container
+# ─────────────────────────────────────────────────────────────
+# Default shell
 ENV SHELL=/bin/zsh
+# Terminal type for color support
 ENV TERM=xterm-256color
+# Claude Code mode
 ENV CLAUDE_CODE_ENTRYPOINT=cli
+# Locale settings
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    # Core utilities
+# ─────────────────────────────────────────────────────────────
+# SYSTEM PACKAGES
+# Alpine uses 'apk' package manager (not apt/yum)
+# --no-cache: Don't store package index (smaller image)
+# ─────────────────────────────────────────────────────────────
+RUN apk add --no-cache \
+    # ── Core Utilities ──
     git \
     curl \
     wget \
@@ -36,95 +78,123 @@ RUN apt-get update && apt-get install -y \
     jq \
     unzip \
     zip \
-    # Shell and terminal
+    file \
+    less \
+    # ── Shell & Terminal ──
     zsh \
+    zsh-vcs \
     tmux \
-    # Network tools
+    ttyd \
+    # ── Network Tools ──
+    openssh \
     openssh-server \
+    rsync \
     net-tools \
-    iputils-ping \
-    dnsutils \
-    # Development tools
-    build-essential \
+    iputils \
+    bind-tools \
+    # ── Development ──
+    build-base \
     python3 \
-    python3-pip \
-    python3-venv \
-    # ttyd dependencies
-    cmake \
-    libjson-c-dev \
-    libwebsockets-dev \
-    # Additional utilities
+    py3-pip \
+    # ── System Utilities ──
+    shadow \
     sudo \
-    locales \
     ca-certificates \
     gnupg \
-    && rm -rf /var/lib/apt/lists/*
+    bash \
+    coreutils \
+    findutils \
+    grep \
+    sed \
+    gawk
 
-# Set up locale
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
-
-# Install ttyd from release (more reliable than building)
-RUN wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
-    && chmod +x /usr/local/bin/ttyd
-
-# Create user with sudo access
-RUN groupadd --gid ${USER_GID} ${USERNAME} \
-    && useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} -s /bin/zsh \
+# ─────────────────────────────────────────────────────────────
+# USER SETUP
+# Create non-root user with sudo access
+# UID/GID are remapped at runtime by entrypoint.sh
+# ─────────────────────────────────────────────────────────────
+RUN addgroup -g ${USER_GID} ${USERNAME} \
+    && adduser -D -u ${USER_UID} -G ${USERNAME} -s /bin/zsh ${USERNAME} \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
     && chmod 0440 /etc/sudoers.d/${USERNAME}
 
-# Set up SSH
-RUN mkdir /var/run/sshd \
-    && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config \
-    && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+# ─────────────────────────────────────────────────────────────
+# SSH SERVER SETUP (Optional feature, enabled via ENABLE_SSH)
+# ─────────────────────────────────────────────────────────────
+RUN mkdir -p /var/run/sshd \
+    && ssh-keygen -A \
+    && sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config \
+    && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-# Switch to user for remaining setup
+# ─────────────────────────────────────────────────────────────
+# USER ENVIRONMENT SETUP
+# Install oh-my-zsh and plugins as the container user
+# ─────────────────────────────────────────────────────────────
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
-# Install oh-my-zsh
+# Oh My Zsh - popular zsh configuration framework
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
-# Install zsh plugins
-RUN git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions \
-    && git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+# Zsh plugins for better shell experience
+RUN git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions \
+        ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions \
+    && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting \
+        ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 
-# Install Claude Code globally
+# ─────────────────────────────────────────────────────────────
+# CLAUDE CODE INSTALLATION
+# Installed globally so it's available immediately
+# ─────────────────────────────────────────────────────────────
 RUN npm install -g @anthropic-ai/claude-code
 
-# Create directory structure
-RUN mkdir -p \
-    /home/${USERNAME}/workspace \
-    /home/${USERNAME}/.claude \
-    /home/${USERNAME}/.config/claude-code \
-    /home/${USERNAME}/.ssh \
-    /home/${USERNAME}/scripts
+# Create .config directory for Claude Code settings
+RUN mkdir -p /home/${USERNAME}/.config
 
-# Copy configuration files (will be done after COPY commands)
+# ─────────────────────────────────────────────────────────────
+# SCRIPTS SETUP
+# Default scripts are stored in /opt/claudepantheon/defaults/
+# On first run, they're copied to /app/data/scripts/ for customization
+# ─────────────────────────────────────────────────────────────
 USER root
 
-# Copy scripts and configs
-COPY --chown=${USERNAME}:${USERNAME} scripts/ /home/${USERNAME}/scripts/
-COPY --chown=${USERNAME}:${USERNAME} config/.zshrc /home/${USERNAME}/.zshrc
-COPY --chown=${USERNAME}:${USERNAME} config/claude-mcp.json /home/${USERNAME}/.config/claude-code/mcp.json
+RUN mkdir -p /opt/claudepantheon/defaults
+
+# Copy default scripts into image
+COPY scripts/entrypoint.sh /opt/claudepantheon/defaults/entrypoint.sh
+COPY scripts/shell-wrapper.sh /opt/claudepantheon/defaults/shell-wrapper.sh
+COPY scripts/.zshrc /opt/claudepantheon/defaults/.zshrc
 
 # Make scripts executable
-RUN chmod +x /home/${USERNAME}/scripts/*.sh
+RUN chmod +x /opt/claudepantheon/defaults/*.sh
 
-# Switch back to user
-USER ${USERNAME}
+# ─────────────────────────────────────────────────────────────
+# DATA DIRECTORY
+# Mount point for persistent data volume
+# Actual data stored on host via docker-compose volume mount
+# ─────────────────────────────────────────────────────────────
+RUN mkdir -p /app/data && chown ${USERNAME}:${USERNAME} /app/data
 
-# Expose ports
-# 7681 - ttyd web terminal
-# 22 - SSH (optional)
+# ─────────────────────────────────────────────────────────────
+# NETWORK PORTS
+# EXPOSE documents ports; actual mapping is in docker-compose.yml
+# 7681 = ttyd web terminal
+# 22   = SSH server (optional, enabled via ENABLE_SSH)
+# ─────────────────────────────────────────────────────────────
 EXPOSE 7681 22
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:7681/ || exit 1
+# ─────────────────────────────────────────────────────────────
+# HEALTH CHECK
+# Docker uses this to determine if container is healthy
+# Checks: ttyd responding + Claude Code installed
+# ─────────────────────────────────────────────────────────────
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget -q --spider http://localhost:7681/ && claude --version > /dev/null 2>&1 || exit 1
 
-# Entry point
-ENTRYPOINT ["/home/claude/scripts/entrypoint.sh"]
+# ─────────────────────────────────────────────────────────────
+# ENTRYPOINT
+# Runs as root to handle user mapping and package installation
+# Then drops privileges before starting ttyd
+# ─────────────────────────────────────────────────────────────
+USER root
+ENTRYPOINT ["/opt/claudepantheon/defaults/entrypoint.sh"]

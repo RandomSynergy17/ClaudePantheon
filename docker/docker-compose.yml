@@ -1,106 +1,153 @@
-version: '3.8'
-
 # ╔═══════════════════════════════════════════════════════════╗
 # ║                    ClaudePantheon                         ║
 # ║          Persistent Claude Code Environment               ║
 # ╚═══════════════════════════════════════════════════════════╝
+#
+# Docker Compose configuration for ClaudePantheon container.
+#
+# QUICK START:
+#   1. Copy .env.example to .env and configure
+#   2. Run: docker compose up -d
+#   3. Open: http://localhost:7681
+#
+# CONFIGURATION:
+#   All settings are controlled via .env file (see .env.example)
+#   Variables use ${VAR:-default} syntax for fallback values
+#
+# VOLUMES:
+#   - Primary data at /app/data (configured via CLAUDE_DATA_PATH)
+#   - Optional host mounts at /mounts/<name> (see volumes section)
+#
+# PORTS:
+#   - 7681: Web terminal (ttyd)
+#   - 2222: SSH (optional, enable via ENABLE_SSH)
+
+version: '3.8'
 
 services:
   claudepantheon:
+    # ─────────────────────────────────────────────────────────
+    # BUILD CONFIGURATION
+    # ─────────────────────────────────────────────────────────
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        USERNAME: claude
-        USER_UID: 1000
-        USER_GID: 1000
+        USERNAME: claude              # Container username (don't change)
+        USER_UID: ${PUID:-1000}       # Mapped to host UID at runtime
+        USER_GID: ${PGID:-1000}       # Mapped to host GID at runtime
+
     container_name: claudepantheon
     hostname: claudepantheon
-    restart: unless-stopped
-    
-    # Environment variables
+    restart: unless-stopped           # Auto-restart on failure/reboot
+
+    # ─────────────────────────────────────────────────────────
+    # ENVIRONMENT VARIABLES
+    # Syntax: VAR=${FROM_ENV:-default}
+    # ─────────────────────────────────────────────────────────
     environment:
-      # Claude authentication (set one of these)
+      # User/Group mapping - matches host user for file permissions
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+
+      # Claude API authentication (or use 'claude auth login' in container)
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      # Terminal settings
+
+      # Terminal configuration
       - TERM=xterm-256color
       - COLORTERM=truecolor
-      # ttyd settings
+
+      # ttyd web terminal settings
       - TTYD_PORT=7681
-      - TTYD_CREDENTIAL=${TTYD_CREDENTIAL:-}  # Format: username:password
-      # Session settings
-      - AUTO_CONTINUE=true  # Always continue last conversation
-      - WORKSPACE_DIR=/home/claude/workspace
-      # Timezone
+      - TTYD_CREDENTIAL=${TTYD_CREDENTIAL:-}    # Format: username:password
+
+      # Optional features
+      - ENABLE_SSH=${ENABLE_SSH:-}              # Set any value to enable
+      - LOG_TO_FILE=${LOG_TO_FILE:-false}       # Log to data/logs/
+      - AUTO_CONTINUE=true                       # Continue last session
+
+      # Claude Code settings
+      - CLAUDE_CODE_SHELL=/bin/zsh              # Use zsh for Claude's shell commands
+      - CLAUDE_BYPASS_PERMISSIONS=${CLAUDE_BYPASS_PERMISSIONS:-false}  # Skip permission prompts
+
+      # System
       - TZ=${TZ:-Asia/Dubai}
-    
-    # Port mappings
+
+    # ─────────────────────────────────────────────────────────
+    # PORT MAPPINGS
+    # Format: "host:container"
+    # ─────────────────────────────────────────────────────────
     ports:
-      - "7681:7681"   # ttyd web terminal
-      - "2222:22"     # SSH (optional, mapped to non-standard port)
-    
-    # Volume mappings for persistence
+      - "7681:7681"     # ttyd web terminal - access at http://localhost:7681
+      - "2222:22"       # SSH server (requires ENABLE_SSH=true)
+
+    # ─────────────────────────────────────────────────────────
+    # VOLUME MOUNTS
+    # Format: host_path:container_path[:options]
+    # Options: ro (read-only), rw (read-write, default)
+    # ─────────────────────────────────────────────────────────
     volumes:
-      # Main workspace - your projects
-      - ./workspace:/home/claude/workspace
-      
-      # Claude Code conversation history and settings
-      - pantheon-history:/home/claude/.claude
-      
-      # Claude Code configuration (MCP servers, etc.)
-      - ./config/claude-code:/home/claude/.config/claude-code
-      
-      # SSH keys for Git and remote access
-      - ./config/ssh:/home/claude/.ssh
-      
-      # Git configuration
-      - ./config/.gitconfig:/home/claude/.gitconfig:ro
-      
-      # Custom scripts persistence
-      - ./scripts:/home/claude/scripts
-      
-      # Zsh history persistence
-      - pantheon-zsh-history:/home/claude/.zsh_history_dir
-      
-      # Node modules cache (speeds up rebuilds)
-      - pantheon-node-cache:/home/claude/.npm
-      
-      # Python virtual environments
-      - pantheon-python-venvs:/home/claude/.venvs
-    
-    # Resource limits
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-        reservations:
-          memory: 1G
-    
-    # Security options
+      # Primary data volume - ALL persistent data lives here
+      # Configure path via CLAUDE_DATA_PATH in .env
+      - ${CLAUDE_DATA_PATH:-/docker/appdata/claudepantheon}:/app/data
+
+      # ┌─────────────────────────────────────────────────────────────┐
+      # │  HOST DIRECTORY MOUNTS (Optional)                           │
+      # │                                                             │
+      # │  Mount host directories to /mounts/<name> in container      │
+      # │  so Claude can access files outside the data directory.     │
+      # │                                                             │
+      # │  Format: /host/path:/mounts/name[:ro]                       │
+      # │  - Paths must be absolute on both sides                     │
+      # │  - Add :ro suffix for read-only access                      │
+      # │  - Access inside container: cd /mounts/<name>               │
+      # └─────────────────────────────────────────────────────────────┘
+      #
+      # Examples - uncomment and modify as needed:
+      #
+      # Home directory
+      # - /home/randolph:/mounts/randolph
+      #
+      # External drives
+      # - /media/TheBigDHF:/mounts/TheBigDHF
+      # - /media/backup:/mounts/backup:ro       # read-only
+      #
+      # Project directories
+      # - /home/randolph/projects:/mounts/projects
+      # - /var/www:/mounts/www
+      #
+      # Docker socket (for docker-in-docker)
+      # - /var/run/docker.sock:/var/run/docker.sock
+
+    # ─────────────────────────────────────────────────────────
+    # RESOURCE LIMITS
+    # ─────────────────────────────────────────────────────────
+    mem_limit: ${MEMORY_LIMIT:-4G}        # Hard memory limit
+    memswap_limit: ${MEMORY_LIMIT:-4G}    # Swap limit (same = no swap)
+
+    # ─────────────────────────────────────────────────────────
+    # SECURITY
+    # ─────────────────────────────────────────────────────────
     security_opt:
-      - no-new-privileges:true
-    
-    # Logging
+      - no-new-privileges:true    # Prevent privilege escalation
+
+    # ─────────────────────────────────────────────────────────
+    # LOGGING
+    # Container logs (separate from LOG_TO_FILE app logs)
+    # ─────────────────────────────────────────────────────────
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
-    
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7681/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+        max-size: "10m"           # Rotate at 10MB
+        max-file: "3"             # Keep 3 rotated files
 
-# Named volumes for data persistence
-volumes:
-  pantheon-history:
-    name: claudepantheon-history
-  pantheon-zsh-history:
-    name: claudepantheon-zsh-history
-  pantheon-node-cache:
-    name: claudepantheon-node-cache
-  pantheon-python-venvs:
-    name: claudepantheon-python-venvs
+    # ─────────────────────────────────────────────────────────
+    # HEALTH CHECK
+    # Docker uses this to monitor container health
+    # ─────────────────────────────────────────────────────────
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7681/"]
+      interval: 30s               # Check every 30 seconds
+      timeout: 10s                # Fail if no response in 10s
+      retries: 3                  # Unhealthy after 3 failures
+      start_period: 10s           # Grace period on startup

@@ -9,10 +9,10 @@
 source ~/.zshrc 2>/dev/null || true
 
 # Configuration
-WORKSPACE_DIR="${WORKSPACE_DIR:-/home/claude/workspace}"
-FIRST_RUN_FLAG="/home/claude/.claude/.initialized"
+DATA_DIR="/app/data"
+WORKSPACE_DIR="${DATA_DIR}/workspace"
+FIRST_RUN_FLAG="${DATA_DIR}/claude/.initialized"
 CLAUDE_MD_PATH="${WORKSPACE_DIR}/CLAUDE.md"
-SESSION_FILE="/home/claude/.claude/.last_session_id"
 
 # Colors
 RED='\033[0;31m'
@@ -57,93 +57,93 @@ run_setup_wizard() {
     echo -e "${YELLOW}Let's configure your ClaudePantheon environment.${NC}"
     echo -e "${YELLOW}This information will be saved to CLAUDE.md for context.${NC}"
     echo ""
-    
+
     # Project/Workspace Name
     echo -e "${GREEN}1. What should we call this workspace?${NC}"
     echo -e "   (e.g., 'Personal Dev Environment', 'YMC Operations Hub')"
     read -r "workspace_name?   > "
     workspace_name="${workspace_name:-My Claude Workspace}"
-    
+
     echo ""
-    
+
     # Primary Use Case
     echo -e "${GREEN}2. What's the primary purpose of this environment?${NC}"
     echo -e "   (e.g., 'Full-stack development', 'Data analysis', 'DevOps automation')"
     read -r "primary_purpose?   > "
     primary_purpose="${primary_purpose:-General development and automation}"
-    
+
     echo ""
-    
+
     # User Context
     echo -e "${GREEN}3. Tell me about yourself (role, expertise level):${NC}"
     echo -e "   (e.g., 'Senior developer with focus on Python and React')"
     read -r "user_context?   > "
     user_context="${user_context:-Developer}"
-    
+
     echo ""
-    
+
     # Tech Stack
     echo -e "${GREEN}4. Primary technologies/languages you work with:${NC}"
     echo -e "   (comma-separated, e.g., 'Python, TypeScript, Docker, PostgreSQL')"
     read -r "tech_stack?   > "
     tech_stack="${tech_stack:-Various}"
-    
+
     echo ""
-    
+
     # Coding Style Preferences
     echo -e "${GREEN}5. Coding style preferences:${NC}"
     echo -e "   (e.g., 'Prefer functional programming, extensive comments, TypeScript strict mode')"
     read -r "coding_style?   > "
     coding_style="${coding_style:-Clean, well-documented code}"
-    
+
     echo ""
-    
+
     # Communication Style
     echo -e "${GREEN}6. How should Claude communicate with you?${NC}"
     echo -e "   (e.g., 'Concise and direct', 'Detailed explanations', 'Ask before making changes')"
     read -r "comm_style?   > "
     comm_style="${comm_style:-Clear and helpful}"
-    
+
     echo ""
-    
+
     # Active Projects
     echo -e "${GREEN}7. Current projects or focus areas (optional):${NC}"
     echo -e "   (e.g., 'Building VendorTrak Pro, F1 event coordination systems')"
     read -r "active_projects?   > "
     active_projects="${active_projects:-}"
-    
+
     echo ""
-    
+
     # MCP Integrations
     echo -e "${GREEN}8. Systems to integrate with via MCP (optional):${NC}"
     echo -e "   (e.g., 'GitHub, Home Assistant, Notion, custom APIs')"
     read -r "mcp_systems?   > "
     mcp_systems="${mcp_systems:-}"
-    
+
     echo ""
-    
+
     # Important Conventions
     echo -e "${GREEN}9. Any important conventions or rules to follow?${NC}"
     echo -e "   (e.g., 'Always use TypeScript, test before commit, follow company style guide')"
     read -r "conventions?   > "
     conventions="${conventions:-}"
-    
+
     echo ""
-    
+
     # Additional Context
     echo -e "${GREEN}10. Anything else Claude should know about this workspace?${NC}"
     read -r "additional_context?   > "
     additional_context="${additional_context:-}"
-    
+
     echo ""
     echo -e "${YELLOW}Generating CLAUDE.md...${NC}"
-    
+
     # Generate CLAUDE.md
     generate_claude_md
-    
-    # Mark as initialized
-    touch "${FIRST_RUN_FLAG}"
-    
+
+    # Mark as initialized with timestamp
+    echo "Initialized: $(date '+%Y-%m-%d %H:%M:%S')" > "${FIRST_RUN_FLAG}"
+
     echo ""
     echo -e "${GREEN}✓ Setup complete!${NC}"
     echo -e "${GREEN}✓ CLAUDE.md created at: ${CLAUDE_MD_PATH}${NC}"
@@ -197,7 +197,7 @@ ${mcp_systems:-No MCP integrations configured yet.}
 $(if [ -n "${mcp_systems}" ]; then
 echo "
 ### Configured MCP Servers
-Check \`~/.config/claude-code/mcp.json\` for current configuration.
+Check \`/app/data/mcp/mcp.json\` for current configuration.
 "
 fi)
 
@@ -238,54 +238,21 @@ cc-mcp      # Manage MCP servers
 \`\`\`
 
 ### File Locations
-- **Workspace:** ${WORKSPACE_DIR}
-- **Claude Config:** ~/.config/claude-code/
-- **MCP Config:** ~/.config/claude-code/mcp.json
-- **Session History:** ~/.claude/
+- **Workspace:** /app/data/workspace
+- **MCP Config:** /app/data/mcp/mcp.json
+- **Session History:** /app/data/claude/
+- **SSH Keys:** /app/data/ssh/
+- **Logs:** /app/data/logs/
+- **Custom Packages:** /app/data/custom-packages.txt
 CLAUDE_MD
 
     echo -e "${GREEN}✓ CLAUDE.md generated${NC}"
 }
 
-# Continue last session
-claude_continue() {
-    cd "${WORKSPACE_DIR}"
-    
-    if [ "${AUTO_CONTINUE:-true}" = "true" ]; then
-        echo -e "${CYAN}Continuing last Claude session...${NC}"
-        echo -e "${YELLOW}(Use 'cc-new' for a fresh session)${NC}"
-        echo ""
-        claude --continue
-    else
-        claude
-    fi
-}
-
-# Start new session
-claude_new() {
-    cd "${WORKSPACE_DIR}"
-    echo -e "${CYAN}Starting fresh Claude session...${NC}"
-    echo ""
-    claude
-}
-
-# Resume specific session
-claude_resume() {
-    echo -e "${CYAN}Recent sessions:${NC}"
-    claude --resume
-}
-
-# List sessions
-claude_list() {
-    echo -e "${CYAN}Listing Claude sessions...${NC}"
-    # This will show the resume picker
-    claude --resume
-}
-
-# MCP management
+# MCP management (elaborate version for first-run context)
 claude_mcp() {
-    local MCP_CONFIG="/home/claude/.config/claude-code/mcp.json"
-    
+    local MCP_CONFIG="/app/data/mcp/mcp.json"
+
     echo -e "${CYAN}MCP Server Management${NC}"
     echo ""
     echo "1. View current configuration"
@@ -295,7 +262,7 @@ claude_mcp() {
     echo "5. Back to shell"
     echo ""
     read -r "choice?Select option: "
-    
+
     case $choice in
         1)
             echo ""
@@ -330,46 +297,44 @@ add_common_mcp() {
     echo "7. Custom"
     echo ""
     read -r "mcp_choice?Select MCP to add: "
-    
-    echo -e "${YELLOW}Please edit ~/.config/claude-code/mcp.json to add the MCP server.${NC}"
+
+    echo -e "${YELLOW}Please edit /app/data/mcp/mcp.json to add the MCP server.${NC}"
     echo -e "${YELLOW}Documentation: https://docs.anthropic.com/en/docs/claude-code/mcp${NC}"
 }
 
 # Main logic
 main() {
     print_banner
-    
+
     # Check if first run
     if is_first_run; then
         echo -e "${YELLOW}First run detected! Let's set up your environment.${NC}"
         echo ""
         read -r "run_setup?Run setup wizard now? [Y/n]: "
-        
+
         if [[ "${run_setup}" != "n" && "${run_setup}" != "N" ]]; then
             run_setup_wizard
         else
             echo -e "${YELLOW}Skipping setup. Run 'cc-setup' later to configure.${NC}"
-            touch "${FIRST_RUN_FLAG}"
+            echo "Initialized: $(date '+%Y-%m-%d %H:%M:%S') (setup skipped)" > "${FIRST_RUN_FLAG}"
         fi
     fi
-    
+
     # Check for API key
     if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
         echo -e "${YELLOW}Note: ANTHROPIC_API_KEY not set. Claude will prompt for authentication.${NC}"
         echo ""
     fi
-    
-    # Start interactive shell
+
+    # Start interactive shell (loads .zshrc with all aliases)
     exec /bin/zsh
 }
 
-# Export functions as commands
-alias cc='claude_continue'
-alias cc-new='claude_new'
-alias cc-resume='claude_resume'
-alias cc-list='claude_list'
-alias cc-setup='run_setup_wizard'
-alias cc-mcp='claude_mcp'
+# Check for setup-only mode (called from .zshrc cc-setup alias)
+if [ "$1" = "--setup-only" ]; then
+    run_setup_wizard
+    exit 0
+fi
 
 # Run main
 main
