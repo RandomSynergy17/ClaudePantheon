@@ -1,28 +1,131 @@
+<div align="center">
+
 # 🏛️ ClaudePantheon
 
-> *A temple for your persistent Claude Code sessions*
+### *A temple for your persistent Claude Code sessions*
 
-A minimal Alpine-based Docker environment for persistent Claude Code sessions with web terminal access, oh-my-zsh, MCP integrations, and runtime package installation.
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://ghcr.io/randomsynergy17/claudepantheon)
+[![Alpine](https://img.shields.io/badge/Alpine-Linux-0D597F?style=for-the-badge&logo=alpinelinux&logoColor=white)](https://alpinelinux.org/)
+[![Claude](https://img.shields.io/badge/Claude-Code-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/)
+
+**Run Claude Code anywhere. Remember everything. Access from any browser.**
+
+[Quick Start](#-quick-start) • [Features](#-features) • [Use Cases](#-use-cases) • [Commands](#-commands) • [Configuration](#️-makefile-commands)
+
+</div>
+
+---
+
+## 🎯 What is ClaudePantheon?
+
+ClaudePantheon gives you a **persistent, always-on Claude Code environment** that you can access from any device with a web browser. Unlike running Claude Code locally, your sessions, context, and workspace persist across restarts—Claude remembers your projects, preferences, and ongoing work.
+
+Think of it as your personal AI development workstation in the cloud (or on your server), ready whenever you need it.
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
 ║                    ClaudePantheon                         ║
-║              A RandomSynergy Production                    ║
+║              A RandomSynergy Production                   ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
+---
+
+## 💡 Use Cases
+
+<table>
+<tr>
+<td width="50%">
+
+### 🏠 Home Server / NAS
+Run Claude Code on your home server and access it from your laptop, tablet, or phone. Your AI assistant is always available on your local network.
+
+### 🖥️ Remote Development
+SSH tunnel or reverse proxy to your ClaudePantheon instance from anywhere. Perfect for developers who work across multiple machines.
+
+### 🏢 Team Workstation
+Deploy shared instances for your team. Each developer gets their own persistent Claude environment without local setup.
+
+</td>
+<td width="50%">
+
+### 🔧 DevOps & Automation
+Let Claude manage your infrastructure. Connect MCP servers for GitHub, databases, Home Assistant, and more—all persisted between sessions.
+
+### 📱 Mobile Access
+Access your AI coding assistant from a tablet or phone browser when you're away from your main workstation.
+
+### 🧪 Experimentation
+Spin up isolated environments to test new workflows, MCP integrations, or Claude configurations without affecting your main setup.
+
+</td>
+</tr>
+</table>
+
+---
+
 ## ✨ Features
 
-- 🏔️ **Alpine-Based** - Minimal footprint, fast startup
-- 🔄 **Persistent Sessions** - All conversations continue from where you left off
-- 🌐 **Web Terminal Access** - Connect via browser using ttyd
-- 🐚 **Oh My Zsh** - Beautiful, functional shell with plugins
-- 🔌 **MCP Ready** - Pre-configured for Model Context Protocol integrations
-- 📦 **Custom Packages** - Install Alpine packages without rebuilding
-- 👤 **User Mapping** - Configurable UID/GID for permission-free bind mounts
-- 📁 **Single Volume** - All data in one directory for easy backup
-- 🔐 **Secure** - Optional authentication for web terminal
-- 🚀 **Auto-Setup** - Interactive wizard builds your CLAUDE.md on first run
+<table>
+<tr>
+<td>
+
+### 🔄 Persistent Everything
+- **Session continuity** — Claude remembers your conversations
+- **Workspace files** — Your code stays between restarts
+- **MCP connections** — Integrations persist across sessions
+- **Shell history** — Command history saved permanently
+
+</td>
+<td>
+
+### 🌐 Access Anywhere
+- **Web terminal** — Full terminal via any browser
+- **No client install** — Just open a URL
+- **Mobile friendly** — Works on tablets and phones
+- **Optional auth** — Secure with username/password
+
+</td>
+</tr>
+<tr>
+<td>
+
+### ⚡ Developer Experience
+- **Oh My Zsh** — Beautiful shell with plugins
+- **Simple aliases** — `cc` to start, `cc-new` for fresh session
+- **Custom packages** — Add tools without rebuilding
+- **User mapping** — Seamless host file permissions
+
+</td>
+<td>
+
+### 🔌 Extensible
+- **MCP ready** — GitHub, Postgres, Home Assistant, more
+- **Host mounts** — Access any directory on the host
+- **Customizable scripts** — Modify startup behavior
+- **Setup wizard** — Generates your CLAUDE.md automatically
+
+</td>
+</tr>
+</table>
+
+### At a Glance
+
+| Feature | Description |
+|---------|-------------|
+| 🏔️ **Alpine-Based** | Minimal ~50MB base image, fast startup |
+| 🔄 **Persistent Sessions** | All conversations continue where you left off |
+| 🌐 **Web Terminal** | Connect via browser using ttyd |
+| 🐚 **Oh My Zsh** | Beautiful shell with syntax highlighting & autosuggestions |
+| 🔌 **MCP Ready** | Pre-configured for Model Context Protocol integrations |
+| 📦 **Custom Packages** | Install Alpine packages without rebuilding |
+| 👤 **User Mapping** | Configurable UID/GID for permission-free bind mounts |
+| 📁 **Single Volume** | All data in one directory for easy backup |
+| 🔐 **Secure** | Optional authentication for web terminal |
+| 🚀 **Auto-Setup** | Interactive wizard builds your CLAUDE.md on first run |
+| ⚡ **Runtime Settings** | Toggle bypass permissions without restart |
+
+---
 
 ## 🚀 Quick Start
 
