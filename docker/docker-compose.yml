@@ -106,14 +106,14 @@ services:
       # Examples - uncomment and modify as needed:
       #
       # Home directory
-      # - /home/randolph:/mounts/randolph
+      # - /home/user:/mounts/home
       #
       # External drives
-      # - /media/TheBigDHF:/mounts/TheBigDHF
+      # - /media/storage:/mounts/storage
       # - /media/backup:/mounts/backup:ro       # read-only
       #
       # Project directories
-      # - /home/randolph/projects:/mounts/projects
+      # - /home/user/projects:/mounts/projects
       # - /var/www:/mounts/www
       #
       # Docker socket (for docker-in-docker)

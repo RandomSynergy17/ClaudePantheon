@@ -26,19 +26,17 @@ NC='\033[0m'
 # Print banner
 print_banner() {
     echo ""
-    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│${NC}                    ${MAGENTA}ClaudePantheon${NC}                           ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}          Persistent Claude Code Workstation               ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}                                                             ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}  Commands:                                                  ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}    ${GREEN}cc${NC}          - Start/continue Claude session            ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}    ${GREEN}cc-new${NC}      - Start fresh Claude session               ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}    ${GREEN}cc-resume${NC}   - Resume specific session                  ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}    ${GREEN}cc-list${NC}     - List recent sessions                     ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}    ${GREEN}cc-setup${NC}    - Re-run CLAUDE.md setup wizard            ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}    ${GREEN}cc-mcp${NC}      - Manage MCP servers                       ${CYAN}│${NC}"
-    echo -e "${CYAN}│${NC}                                                             ${CYAN}│${NC}"
-    echo -e "${CYAN}└─────────────────────────────────────────────────────────────┘${NC}"
+    echo -e "${CYAN}========================================${NC}"
+    echo -e "       ${MAGENTA}ClaudePantheon${NC}"
+    echo -e "  Persistent Claude Code Workstation"
+    echo -e "${CYAN}========================================${NC}"
+    echo ""
+    echo -e "  ${GREEN}cc${NC}          Start/continue Claude session"
+    echo -e "  ${GREEN}cc-new${NC}      Start fresh Claude session"
+    echo -e "  ${GREEN}cc-resume${NC}   Resume specific session"
+    echo -e "  ${GREEN}cc-list${NC}     List recent sessions"
+    echo -e "  ${GREEN}cc-setup${NC}    Re-run CLAUDE.md setup wizard"
+    echo -e "  ${GREEN}cc-mcp${NC}      Manage MCP servers"
     echo ""
 }
 
@@ -60,7 +58,7 @@ run_setup_wizard() {
 
     # Project/Workspace Name
     echo -e "${GREEN}1. What should we call this workspace?${NC}"
-    echo -e "   (e.g., 'Personal Dev Environment', 'YMC Operations Hub')"
+    echo -e "   (e.g., 'Personal Dev Environment', 'Project Alpha')"
     read -r "workspace_name?   > "
     workspace_name="${workspace_name:-My Claude Workspace}"
 
@@ -108,7 +106,7 @@ run_setup_wizard() {
 
     # Active Projects
     echo -e "${GREEN}7. Current projects or focus areas (optional):${NC}"
-    echo -e "   (e.g., 'Building VendorTrak Pro, F1 event coordination systems')"
+    echo -e "   (e.g., 'Building a SaaS app, API integrations, automation scripts')"
     read -r "active_projects?   > "
     active_projects="${active_projects:-}"
 

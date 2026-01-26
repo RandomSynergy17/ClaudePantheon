@@ -7,7 +7,7 @@ A minimal Alpine-based Docker environment for persistent Claude Code sessions wi
 ```
 ╔═══════════════════════════════════════════════════════════╗
 ║                    ClaudePantheon                         ║
-║     Project Hospitality - We implement. Not just advise.  ║
+║              A RandomSynergy Production                    ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
@@ -219,15 +219,15 @@ volumes:
   - ${CLAUDE_DATA_PATH:-/docker/appdata/claudepantheon}:/app/data
 
   # Add your host mounts here:
-  - /home/randolph:/mounts/randolph
-  - /media/TheBigDHF:/mounts/TheBigDHF
+  - /home/user:/mounts/home
+  - /media/storage:/mounts/storage
   - /var/www:/mounts/www:ro  # read-only
 ```
 
 Inside the container, access mounted directories at `/mounts/`:
 ```bash
-ls /mounts/randolph/projects
-cd /mounts/TheBigDHF/code
+ls /mounts/home/projects
+cd /mounts/storage/code
 ```
 
 **Security note:** Mounted directories are accessible to Claude with full read/write permissions (unless `:ro` is specified). Only mount directories you want Claude to access.
@@ -371,5 +371,5 @@ MIT - Do whatever you want with it!
 
 <p align="center">
 Built with ❤️ for persistent Claude Code workflows.<br>
-<em>"We implement. Not just advise."</em> - Project Hospitality
+A RandomSynergy Production
 </p>

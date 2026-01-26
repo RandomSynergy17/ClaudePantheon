@@ -34,7 +34,7 @@
 FROM node:22-alpine
 
 # Image metadata (visible in 'docker inspect')
-LABEL maintainer="Project Hospitality"
+LABEL maintainer="RandomSynergy"
 LABEL description="ClaudePantheon - Persistent Claude Code environment with web terminal access"
 LABEL project="ClaudePantheon"
 

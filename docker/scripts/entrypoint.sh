@@ -435,7 +435,7 @@ start_ttyd() {
             *:*)
                 log "ttyd authentication enabled"
                 # Use separate exec with -c flag to avoid shell injection
-                exec ttyd -p "${TTYD_PORT:-7681}" \
+                exec ttyd -p "${TTYD_PORT:-7681}" -W \
                     -u "${PUID}" -g "${PGID}" \
                     -t "fontSize=14" \
                     -t "fontFamily=JetBrains Mono, Menlo, Monaco, monospace" \
@@ -451,7 +451,7 @@ start_ttyd() {
     else
         warn "ttyd running without authentication - set TTYD_CREDENTIAL in .env for security"
         # Exec without -c flag
-        exec ttyd -p "${TTYD_PORT:-7681}" \
+        exec ttyd -p "${TTYD_PORT:-7681}" -W \
             -u "${PUID}" -g "${PGID}" \
             -t "fontSize=14" \
             -t "fontFamily=JetBrains Mono, Menlo, Monaco, monospace" \
@@ -465,7 +465,7 @@ main() {
     printf "\n"
     printf "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}\n"
     printf "${CYAN}║                    ClaudePantheon                         ║${NC}\n"
-    printf "${CYAN}║     Project Hospitality - We implement. Not just advise.  ║${NC}\n"
+    printf "${CYAN}║              A RandomSynergy Production                    ║${NC}\n"
     printf "${CYAN}╚═══════════════════════════════════════════════════════════╝${NC}\n"
     printf "\n"
 
