@@ -1,0 +1,300 @@
+#!/bin/sh
+# ╔═══════════════════════════════════════════════════════════╗
+# ║                    ClaudePantheon                         ║
+# ║              Service Supervisor Script                    ║
+# ╚═══════════════════════════════════════════════════════════╝
+#
+# Lightweight process supervisor that starts:
+#   - php-fpm (background) - for landing page
+#   - nginx (background) - reverse proxy on port 7681
+#   - filebrowser (background, optional) - file manager
+#   - ttyd (foreground) - main process, container dies with it
+#
+# Called by entrypoint.sh after user setup and package installation.
+
+set -e
+
+DATA_DIR="/app/data"
+DEFAULTS_DIR="/opt/claudepantheon/defaults"
+
+# ─────────────────────────────────────────────────────────────
+# COLOR OUTPUT
+# ─────────────────────────────────────────────────────────────
+log_info() { echo "\033[0;36m[INFO]\033[0m $1"; }
+log_success() { echo "\033[0;32m[OK]\033[0m $1"; }
+log_warn() { echo "\033[0;33m[WARN]\033[0m $1"; }
+log_error() { echo "\033[0;31m[ERROR]\033[0m $1"; }
+
+# ─────────────────────────────────────────────────────────────
+# CLEANUP HANDLER
+# ─────────────────────────────────────────────────────────────
+cleanup() {
+    log_info "Shutting down services..."
+
+    # Kill background processes
+    [ -n "$NGINX_PID" ] && kill "$NGINX_PID" 2>/dev/null || true
+    [ -n "$PHPFPM_PID" ] && kill "$PHPFPM_PID" 2>/dev/null || true
+    [ -n "$FILEBROWSER_PID" ] && kill "$FILEBROWSER_PID" 2>/dev/null || true
+
+    # Wait for processes to terminate
+    wait 2>/dev/null || true
+
+    log_info "Cleanup complete"
+}
+
+trap cleanup EXIT INT TERM
+
+# ─────────────────────────────────────────────────────────────
+# COPY DEFAULT CONFIGS
+# ─────────────────────────────────────────────────────────────
+log_info "Setting up configuration files..."
+
+# nginx config
+mkdir -p "$DATA_DIR/nginx"
+if [ ! -f "$DATA_DIR/nginx/nginx.conf" ]; then
+    cp "$DEFAULTS_DIR/nginx/nginx.conf" "$DATA_DIR/nginx/nginx.conf"
+    log_success "Created default nginx.conf"
+fi
+
+# webroot
+mkdir -p "$DATA_DIR/webroot/public_html"
+if [ ! -f "$DATA_DIR/webroot/public_html/index.php" ]; then
+    cp "$DEFAULTS_DIR/webroot/public_html/index.php" "$DATA_DIR/webroot/public_html/index.php"
+    log_success "Created default landing page"
+fi
+
+# filebrowser database directory
+mkdir -p "$DATA_DIR/filebrowser"
+
+# ─────────────────────────────────────────────────────────────
+# AUTHENTICATION SETUP
+# ─────────────────────────────────────────────────────────────
+log_info "Configuring authentication..."
+
+# Backward compatibility: TTYD_CREDENTIAL -> INTERNAL_CREDENTIAL
+if [ -n "$TTYD_CREDENTIAL" ] && [ -z "$INTERNAL_CREDENTIAL" ]; then
+    INTERNAL_CREDENTIAL="$TTYD_CREDENTIAL"
+fi
+
+# Create htpasswd files
+HTPASSWD_INTERNAL="/tmp/htpasswd-internal"
+HTPASSWD_WEBROOT="/tmp/htpasswd-webroot"
+
+# Internal zone authentication
+if [ "$INTERNAL_AUTH" = "true" ] && [ -n "$INTERNAL_CREDENTIAL" ]; then
+    INTERNAL_USER=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f1)
+    INTERNAL_PASS=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f2-)
+
+    # Generate htpasswd (using openssl for password hash)
+    INTERNAL_HASH=$(openssl passwd -apr1 "$INTERNAL_PASS")
+    echo "${INTERNAL_USER}:${INTERNAL_HASH}" > "$HTPASSWD_INTERNAL"
+    chmod 600 "$HTPASSWD_INTERNAL"
+    log_success "Internal zone authentication enabled (user: $INTERNAL_USER)"
+else
+    rm -f "$HTPASSWD_INTERNAL"
+    log_info "Internal zone authentication disabled"
+fi
+
+# Webroot zone authentication
+if [ "$WEBROOT_AUTH" = "true" ]; then
+    # Use WEBROOT_CREDENTIAL if set, otherwise fall back to INTERNAL_CREDENTIAL
+    if [ -n "$WEBROOT_CREDENTIAL" ]; then
+        WEBROOT_USER=$(echo "$WEBROOT_CREDENTIAL" | cut -d: -f1)
+        WEBROOT_PASS=$(echo "$WEBROOT_CREDENTIAL" | cut -d: -f2-)
+    elif [ -n "$INTERNAL_CREDENTIAL" ]; then
+        WEBROOT_USER=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f1)
+        WEBROOT_PASS=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f2-)
+    fi
+
+    if [ -n "$WEBROOT_USER" ] && [ -n "$WEBROOT_PASS" ]; then
+        WEBROOT_HASH=$(openssl passwd -apr1 "$WEBROOT_PASS")
+        echo "${WEBROOT_USER}:${WEBROOT_HASH}" > "$HTPASSWD_WEBROOT"
+        chmod 600 "$HTPASSWD_WEBROOT"
+        log_success "Webroot zone authentication enabled (user: $WEBROOT_USER)"
+    else
+        log_warn "WEBROOT_AUTH=true but no credentials provided"
+        rm -f "$HTPASSWD_WEBROOT"
+    fi
+else
+    rm -f "$HTPASSWD_WEBROOT"
+    log_info "Webroot zone authentication disabled"
+fi
+
+# ─────────────────────────────────────────────────────────────
+# NGINX CONFIGURATION
+# ─────────────────────────────────────────────────────────────
+log_info "Configuring nginx..."
+
+# Create working nginx config from template
+NGINX_CONF="/tmp/nginx.conf"
+cp "$DATA_DIR/nginx/nginx.conf" "$NGINX_CONF"
+
+# Internal zone auth replacement
+if [ -f "$HTPASSWD_INTERNAL" ]; then
+    AUTH_INTERNAL='auth_basic "ClaudePantheon Internal";
+            auth_basic_user_file /tmp/htpasswd-internal;'
+else
+    AUTH_INTERNAL=""
+fi
+
+# Webroot zone auth replacement
+if [ -f "$HTPASSWD_WEBROOT" ]; then
+    AUTH_WEBROOT='auth_basic "ClaudePantheon";
+            auth_basic_user_file /tmp/htpasswd-webroot;'
+else
+    AUTH_WEBROOT=""
+fi
+
+# Replace auth placeholders
+sed -i "s|# AUTH_INTERNAL_PLACEHOLDER.*|$AUTH_INTERNAL|g" "$NGINX_CONF"
+sed -i "s|# AUTH_WEBROOT_PLACEHOLDER.*|$AUTH_WEBROOT|g" "$NGINX_CONF"
+
+# WebDAV configuration
+if [ "$ENABLE_WEBDAV" != "true" ]; then
+    # Remove WebDAV location block
+    sed -i '/# WEBDAV_LOCATION_START/,/# WEBDAV_LOCATION_END/d' "$NGINX_CONF"
+    log_info "WebDAV disabled"
+else
+    log_success "WebDAV enabled at /webdav/"
+fi
+
+# Create nginx temp directories
+mkdir -p /tmp/nginx-client-body /tmp/nginx-proxy /tmp/nginx-fastcgi /tmp/nginx-uwsgi /tmp/nginx-scgi
+
+# ─────────────────────────────────────────────────────────────
+# PHP-FPM CONFIGURATION
+# ─────────────────────────────────────────────────────────────
+log_info "Configuring PHP-FPM..."
+
+# Create PHP-FPM config for non-root operation
+PHP_FPM_CONF="/tmp/php-fpm.conf"
+PHP_FPM_LOG="/tmp/php-fpm.log"
+touch "$PHP_FPM_LOG"
+cat > "$PHP_FPM_CONF" << EOF
+[global]
+error_log = $PHP_FPM_LOG
+daemonize = no
+
+[www]
+user = claude
+group = claude
+listen = 127.0.0.1:9000
+listen.owner = claude
+listen.group = claude
+
+pm = dynamic
+pm.max_children = 5
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+
+php_admin_value[error_log] = $PHP_FPM_LOG
+php_admin_flag[log_errors] = on
+EOF
+
+# ─────────────────────────────────────────────────────────────
+# START PHP-FPM
+# ─────────────────────────────────────────────────────────────
+log_info "Starting PHP-FPM..."
+php-fpm83 -F -y "$PHP_FPM_CONF" &
+PHPFPM_PID=$!
+sleep 1
+
+if kill -0 "$PHPFPM_PID" 2>/dev/null; then
+    log_success "PHP-FPM started (PID: $PHPFPM_PID)"
+else
+    log_error "Failed to start PHP-FPM"
+    exit 1
+fi
+
+# ─────────────────────────────────────────────────────────────
+# START NGINX
+# ─────────────────────────────────────────────────────────────
+log_info "Starting nginx..."
+nginx -c "$NGINX_CONF" &
+NGINX_PID=$!
+sleep 1
+
+if kill -0 "$NGINX_PID" 2>/dev/null; then
+    log_success "nginx started (PID: $NGINX_PID) - listening on port 7681"
+else
+    log_error "Failed to start nginx"
+    exit 1
+fi
+
+# ─────────────────────────────────────────────────────────────
+# START FILEBROWSER (Optional)
+# FileBrowser Quantum uses YAML config
+# ─────────────────────────────────────────────────────────────
+if [ "$ENABLE_FILEBROWSER" != "false" ]; then
+    log_info "Starting FileBrowser..."
+
+    # FileBrowser Quantum configuration file
+    FB_CONFIG="$DATA_DIR/filebrowser/config.yaml"
+
+    # Create minimal config file for FileBrowser Quantum
+    # Using correct YAML structure based on official docs
+    # baseURL must match nginx location - nginx no longer strips prefix
+    cat > "$FB_CONFIG" << EOF
+server:
+  port: 7683
+  baseURL: /files
+  database: $DATA_DIR/filebrowser/database.db
+  cacheDir: $DATA_DIR/filebrowser/tmp
+  sources:
+    - path: $DATA_DIR
+      config:
+        defaultEnabled: true
+EOF
+
+    # Start FileBrowser Quantum from its config directory
+    cd "$DATA_DIR/filebrowser"
+    filebrowser -c "$FB_CONFIG" &
+    FILEBROWSER_PID=$!
+    cd - > /dev/null
+    sleep 2
+
+    if kill -0 "$FILEBROWSER_PID" 2>/dev/null; then
+        log_success "FileBrowser started (PID: $FILEBROWSER_PID) at /files/"
+    else
+        log_warn "Failed to start FileBrowser - continuing without it"
+        FILEBROWSER_PID=""
+    fi
+else
+    log_info "FileBrowser disabled"
+fi
+
+# ─────────────────────────────────────────────────────────────
+# START TTYD (Main Process - Foreground)
+# ─────────────────────────────────────────────────────────────
+log_info "Starting ttyd web terminal..."
+
+# Build ttyd command
+TTYD_CMD="ttyd"
+TTYD_CMD="$TTYD_CMD --port 7682"
+TTYD_CMD="$TTYD_CMD --interface 127.0.0.1"
+TTYD_CMD="$TTYD_CMD --writable"
+
+# Build bypass permissions flag
+BYPASS_FLAG=""
+if [ "$CLAUDE_BYPASS_PERMISSIONS" = "true" ] || [ -f "$DATA_DIR/.bypass_permissions" ]; then
+    BYPASS_FLAG="--dangerously-skip-permissions"
+fi
+
+# Shell wrapper with optional bypass
+SHELL_CMD="$DATA_DIR/scripts/shell-wrapper.sh $BYPASS_FLAG"
+
+log_success "Services ready!"
+echo ""
+echo "╔═══════════════════════════════════════════════════════════╗"
+echo "║                    ClaudePantheon                         ║"
+echo "╚═══════════════════════════════════════════════════════════╝"
+echo ""
+echo "  Landing Page:  http://localhost:7681/"
+echo "  Terminal:      http://localhost:7681/terminal/"
+[ "$ENABLE_FILEBROWSER" != "false" ] && echo "  File Browser:  http://localhost:7681/files/"
+[ "$ENABLE_WEBDAV" = "true" ] && echo "  WebDAV:        http://localhost:7681/webdav/"
+echo ""
+
+# Run ttyd in foreground (container dies if ttyd dies)
+exec $TTYD_CMD $SHELL_CMD

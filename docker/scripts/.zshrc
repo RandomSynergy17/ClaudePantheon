@@ -25,6 +25,18 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 
+# Fix color bleeding from Claude Code errors
+# Force terminal color reset before AND after every command
+precmd() {
+    # Reset all attributes, then explicitly set to normal
+    printf '\033[0m\033[39m\033[49m'
+}
+
+preexec() {
+    # Reset colors before executing any command
+    printf '\033[0m'
+}
+
 # Environment
 export EDITOR='vim'
 export LANG='en_US.UTF-8'
@@ -230,15 +242,27 @@ alias cc-mcp='claude_mcp'
 alias cc-bypass='cc_bypass'
 alias cc-settings='cc_settings'
 alias cc-info='cc_settings && claude --version'
-alias cc-help='echo "cc          - Continue last session
-cc-new      - Start fresh session
-cc-resume   - Resume last session (same as cc)
-cc-list     - Interactive session picker
-cc-setup    - Run setup wizard
-cc-mcp      - Manage MCP servers
-cc-bypass   - Toggle bypass permissions [on|off]
-cc-settings - Show current settings
-cc-info     - Show environment info"'
+alias cc-help='echo "
+ClaudePantheon Commands:
+
+Starting Sessions:
+  cc-new      - Start a NEW Claude session (use this first!)
+  cc          - Continue LAST session (requires existing session)
+  cc-resume   - Resume specific session (interactive picker)
+  cc-list     - List all sessions
+
+Configuration:
+  cc-setup    - Run CLAUDE.md setup wizard
+  cc-mcp      - Manage MCP servers
+  cc-bypass   - Toggle bypass permissions [on|off]
+  cc-settings - Show current settings
+  cc-info     - Show environment info
+
+Navigation:
+  ccw         - Go to workspace
+  ccd         - Go to data directory
+
+Note: If you see \"No conversation found\", use cc-new to start!"'
 
 # Navigation aliases
 alias ccw='cd /app/data/workspace'
@@ -270,7 +294,11 @@ alias di='docker images'
 
 # Welcome message on shell start
 echo ""
-echo "🏛️  ClaudePantheon - Type 'cc' to start Claude"
+echo "🏛️  ClaudePantheon - Quick Start:"
+echo "   'cc-new'   → Start a NEW Claude session"
+echo "   'cc'       → Continue last session"
+echo "   'cc-help'  → Show all commands"
+echo ""
 echo "   Data directory: /app/data"
 
 # Security warning if TTYD has no authentication

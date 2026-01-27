@@ -4,7 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ClaudePantheon is a minimal Alpine-based Docker environment for persistent Claude Code sessions. Features web terminal access via ttyd, session continuity, MCP integrations, and runtime package installation. All persistent data lives in a single volume mount.
+ClaudePantheon is a minimal Alpine-based Docker environment for persistent Claude Code sessions. Features:
+- **Single-port architecture**: nginx reverse proxy routes to all services via port 7681
+- **Landing page**: PHP-based with Terminal, Files, and PHP Info buttons
+- **Web terminal**: ttyd at /terminal/
+- **File browser**: FileBrowser Quantum at /files/
+- **WebDAV**: Optional at /webdav/
+- **Two-zone authentication**: Separate auth for internal services vs webroot
+- **Session continuity**: Claude remembers your conversations
+- **MCP integrations**: Persisted configuration
+- **Runtime customization**: All scripts editable without rebuild
 
 ## Development Commands
 
@@ -25,7 +34,7 @@ make dev            # Run in foreground with logs
 
 # Status & Health
 make status         # Show container status and data directory
-make health         # Check ttyd web terminal health
+make health         # Check web interface health
 make version        # Show Claude Code version
 make tree           # Show data directory structure
 
@@ -34,13 +43,6 @@ make backup         # Backup data directory to tarball
 make update         # Update Claude Code to latest version
 make clean          # Remove container and images (keeps data)
 make purge          # Full cleanup including data (DESTRUCTIVE)
-
-# FileBrowser (optional web file manager)
-make up-files       # Start with FileBrowser enabled
-make down-all       # Stop all services including FileBrowser
-make files-up       # Start FileBrowser only
-make files-down     # Stop FileBrowser only
-make files-logs     # Follow FileBrowser logs
 ```
 
 ### Shell Aliases (inside container)
@@ -71,87 +73,122 @@ ccp             # Edit custom packages list
 ## Architecture
 
 ```
+┌─────────────────────────────────────────────────────────────┐
+│                    Browser (Port 7681)                       │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                       nginx                                  │
+│                  (Reverse Proxy)                             │
+│                                                              │
+│   /              → Landing Page (PHP)                        │
+│   /terminal/     → ttyd (Claude Code)                        │
+│   /files/        → FileBrowser Quantum                       │
+│   /webdav/       → nginx WebDAV (optional)                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### File Structure
+
+```
 docker/
-├── Dockerfile              # Alpine image (Node.js 22, ttyd, zsh, rsync, ssh)
-├── docker-compose.yml      # Volume mount: $CLAUDE_DATA_PATH:/app/data
+├── Dockerfile              # Alpine image definition
+├── docker-compose.yml      # Container configuration
 ├── Makefile                # Management commands
-├── .env.example            # Host config template (CLAUDE_DATA_PATH, PUID, etc.)
-├── scripts/                # Default scripts (copied to data/ on first run)
+├── .env.example            # Configuration template
+├── defaults/               # Default configs (copied on first run)
+│   ├── nginx/
+│   │   └── nginx.conf      # Reverse proxy configuration
+│   └── webroot/
+│       └── public_html/
+│           └── index.php   # Landing page
+├── scripts/
 │   ├── entrypoint.sh       # Container bootstrap
+│   ├── start-services.sh   # Service supervisor (nginx, php-fpm, filebrowser, ttyd)
 │   ├── shell-wrapper.sh    # First-run wizard
-│   └── .zshrc              # Shell config
-│
+│   └── .zshrc              # Shell configuration
+
 # Data directory (default: /docker/appdata/claudepantheon)
 $CLAUDE_DATA_PATH/          # ALL PERSISTENT DATA (auto-created)
 ├── workspace/              # User projects
 ├── claude/                 # Session history
-├── mcp/                    # MCP configuration
-│   └── mcp.json
+├── mcp/mcp.json            # MCP server configuration
+├── nginx/nginx.conf        # nginx config (customizable)
+├── webroot/public_html/    # Web content (customizable)
+│   └── index.php           # Landing page
+├── filebrowser/            # FileBrowser database
 ├── ssh/                    # SSH keys (auto 700/600 permissions)
 ├── logs/                   # Container logs (enable with LOG_TO_FILE=true)
 ├── zsh-history/
 ├── npm-cache/
 ├── python-venvs/
-├── filebrowser/            # FileBrowser config (optional)
 ├── scripts/                # Runtime scripts (all customizable!)
 │   ├── entrypoint.sh       # Container bootstrap
+│   ├── start-services.sh   # Service supervisor
 │   ├── shell-wrapper.sh    # First-run wizard
-│   └── .zshrc              # Shell config (symlinked to ~/.zshrc)
+│   └── .zshrc              # Shell config
 ├── gitconfig               # Git configuration
-├── custom-packages.txt
-└── .env
+├── custom-packages.txt     # Alpine packages to install
+└── .env                    # Environment configuration
 ```
 
-**Flow:** Docker start → `defaults/entrypoint.sh` checks for custom → `data/scripts/entrypoint.sh` (if exists) → ttyd → `data/scripts/shell-wrapper.sh` → zsh → Claude Code CLI
-
-**Customization:** All scripts in `$CLAUDE_DATA_PATH/scripts/` can be customized without rebuilding the image.
+**Flow:** Docker start → `entrypoint.sh` (user mapping, data init) → `start-services.sh` (nginx, php-fpm, filebrowser, ttyd) → `shell-wrapper.sh` → zsh → Claude Code CLI
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `docker/Dockerfile` | Alpine image with Node.js 22, ttyd, zsh, oh-my-zsh, rsync, ssh |
-| `docker/docker-compose.yml` | Volume mount: `$CLAUDE_DATA_PATH:/app/data` |
+| `docker/Dockerfile` | Alpine image with Node.js 22, nginx, php-fpm, ttyd, filebrowser |
+| `docker/docker-compose.yml` | Container config, volume mount, environment variables |
 | `docker/Makefile` | All management commands |
 | `docker/scripts/entrypoint.sh` | Bootstrap: user mapping, data init, script copying |
-| `docker/scripts/shell-wrapper.sh` | Default first-run wizard (copied to data/) |
-| `docker/scripts/.zshrc` | Default shell config (copied to data/) |
-
-## Data Directory (created on first run)
-
-| Path | Purpose |
-|------|---------|
-| `data/workspace/` | Your projects (symlinked to ~/workspace) |
-| `data/claude/` | Claude Code session history (symlinked to ~/.claude) |
-| `data/mcp/mcp.json` | MCP server configuration |
-| `data/ssh/` | SSH keys (symlinked to ~/.ssh, auto 700/600 perms) |
-| `data/logs/` | Container logs (enable with LOG_TO_FILE=true) |
-| `data/gitconfig` | Git configuration |
-| `data/zsh-history/` | Shell history (symlinked to ~/.zsh_history_dir) |
-| `data/npm-cache/` | NPM cache (symlinked to ~/.npm) |
-| `data/python-venvs/` | Python virtual environments (symlinked to ~/.venvs) |
-| `data/scripts/entrypoint.sh` | Container bootstrap (customizable) |
-| `data/scripts/shell-wrapper.sh` | First-run wizard (customizable) |
-| `data/scripts/.zshrc` | Shell config (symlinked to ~/.zshrc, customizable) |
-| `data/custom-packages.txt` | Alpine packages to install on boot |
-| `data/filebrowser/` | FileBrowser Quantum config and database |
-| `data/.env` | Environment configuration (API keys, etc.) |
+| `docker/scripts/start-services.sh` | Service supervisor: nginx, php-fpm, filebrowser, ttyd |
+| `docker/defaults/nginx/nginx.conf` | Default reverse proxy config |
+| `docker/defaults/webroot/public_html/index.php` | Default landing page |
 
 ## Configuration
 
 Host-level settings go in `docker/.env` (copy from `.env.example`):
+
+### Data & User
 - `CLAUDE_DATA_PATH` - Where to store data (default: `/docker/appdata/claudepantheon`)
 - `PUID` / `PGID` - User/group IDs for file permissions
-- `ANTHROPIC_API_KEY` - Claude API key
-- `TTYD_CREDENTIAL` - Web terminal auth (`user:pass`)
-- `LOG_TO_FILE` - Enable logging to data/logs/ (default: false)
+- `TZ` - Timezone (default: UTC)
 - `MEMORY_LIMIT` - Container memory limit (default: 4G)
-- `CLAUDE_BYPASS_PERMISSIONS` - Skip permission prompts (default: false)
-- `FILEBROWSER_PORT` - FileBrowser web port (default: 7682)
-- `FILEBROWSER_USERNAME` - FileBrowser web UI username (default: admin)
-- `FILEBROWSER_PASSWORD` - FileBrowser web UI password
 
-Claude Code is configured to use zsh as its shell (`CLAUDE_CODE_SHELL=/bin/zsh`).
+### Authentication (Two-Zone System)
+
+| Zone | Endpoints | Variables |
+|------|-----------|-----------|
+| **Internal** | /terminal/, /files/, /webdav/ | `INTERNAL_AUTH`, `INTERNAL_CREDENTIAL` |
+| **Webroot** | / (landing page, custom apps) | `WEBROOT_AUTH`, `WEBROOT_CREDENTIAL` |
+
+```bash
+# Protect everything with same credentials
+INTERNAL_AUTH=true
+INTERNAL_CREDENTIAL=admin:secretpassword
+WEBROOT_AUTH=true  # Uses INTERNAL_CREDENTIAL if WEBROOT_CREDENTIAL not set
+
+# Public landing, protected services
+INTERNAL_AUTH=true
+INTERNAL_CREDENTIAL=admin:secretpassword
+WEBROOT_AUTH=false
+```
+
+`TTYD_CREDENTIAL` still works for backward compatibility (maps to `INTERNAL_CREDENTIAL`).
+
+### Feature Toggles
+- `ENABLE_FILEBROWSER` - Enable /files/ endpoint (default: true)
+- `ENABLE_WEBDAV` - Enable /webdav/ endpoint (default: false)
+
+### Claude Settings
+- `ANTHROPIC_API_KEY` - Claude API key
+- `CLAUDE_BYPASS_PERMISSIONS` - Skip permission prompts (default: false)
+- `CLAUDE_CODE_SHELL` - Shell for Claude commands (set to /bin/zsh)
+
+### Other
+- `ENABLE_SSH` - Enable SSH server on port 2222
+- `LOG_TO_FILE` - Enable logging to data/logs/ (default: false)
 
 **Runtime settings:** Bypass permissions can be toggled at runtime with `cc-bypass [on|off]` - no restart needed.
 
@@ -193,6 +230,19 @@ volumes:
 ```
 
 Access at `/mounts/` inside container.
+
+## Customization
+
+All configs in `$CLAUDE_DATA_PATH/` can be customized without rebuilding:
+
+| Path | Purpose |
+|------|---------|
+| `nginx/nginx.conf` | Reverse proxy configuration |
+| `webroot/public_html/index.php` | Landing page (add branding, links, PHP apps) |
+| `scripts/entrypoint.sh` | Container bootstrap |
+| `scripts/start-services.sh` | Service supervisor |
+| `scripts/shell-wrapper.sh` | First-run wizard |
+| `scripts/.zshrc` | Shell configuration |
 
 ## Startup Validation
 

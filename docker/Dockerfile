@@ -97,6 +97,14 @@ RUN apk add --no-cache \
     build-base \
     python3 \
     py3-pip \
+    # ── Web Server & PHP ──
+    nginx \
+    nginx-mod-http-dav-ext \
+    php83 \
+    php83-fpm \
+    php83-json \
+    php83-openssl \
+    openssl \
     # ── System Utilities ──
     shadow \
     sudo \
@@ -159,18 +167,35 @@ RUN curl -fsSL https://claude.ai/install.sh | bash \
 RUN mkdir -p /home/${USERNAME}/.config
 
 # ─────────────────────────────────────────────────────────────
-# SCRIPTS SETUP
+# FILEBROWSER QUANTUM INSTALLATION
+# Web-based file manager (~30MB static binary)
+# https://github.com/gtsteffaniak/filebrowser
+# ─────────────────────────────────────────────────────────────
+USER root
+ARG FB_VERSION=v1.1.1-stable
+RUN wget -qO /usr/local/bin/filebrowser \
+        "https://github.com/gtsteffaniak/filebrowser/releases/download/${FB_VERSION}/linux-amd64-filebrowser" \
+    && chmod +x /usr/local/bin/filebrowser
+
+# ─────────────────────────────────────────────────────────────
+# SCRIPTS AND DEFAULTS SETUP
 # Default scripts are stored in /opt/claudepantheon/defaults/
-# On first run, they're copied to /app/data/scripts/ for customization
+# On first run, they're copied to /app/data/ for customization
 # ─────────────────────────────────────────────────────────────
 USER root
 
-RUN mkdir -p /opt/claudepantheon/defaults
+RUN mkdir -p /opt/claudepantheon/defaults/nginx \
+    && mkdir -p /opt/claudepantheon/defaults/webroot/public_html
 
 # Copy default scripts into image
 COPY scripts/entrypoint.sh /opt/claudepantheon/defaults/entrypoint.sh
 COPY scripts/shell-wrapper.sh /opt/claudepantheon/defaults/shell-wrapper.sh
 COPY scripts/.zshrc /opt/claudepantheon/defaults/.zshrc
+COPY scripts/start-services.sh /opt/claudepantheon/defaults/start-services.sh
+
+# Copy nginx and webroot defaults
+COPY defaults/nginx/nginx.conf /opt/claudepantheon/defaults/nginx/nginx.conf
+COPY defaults/webroot/public_html/index.php /opt/claudepantheon/defaults/webroot/public_html/index.php
 
 # Make scripts executable
 RUN chmod +x /opt/claudepantheon/defaults/*.sh

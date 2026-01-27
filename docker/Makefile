@@ -31,7 +31,7 @@
 # Override by setting CLAUDE_DATA_PATH in .env
 CLAUDE_DATA_PATH ?= ./data
 
-.PHONY: help build up down logs shell restart clean status backup update purge rebuild dev health version tree up-files down-all files-up files-down files-logs
+.PHONY: help build up down logs shell restart clean status backup update purge rebuild dev health version tree
 
 # ─────────────────────────────────────────────────────────────
 # DEFAULT TARGET (runs when you just type 'make')
@@ -57,7 +57,7 @@ help:
 	@echo ""
 	@echo "Status & Health:"
 	@echo "  status     Show container status and resources"
-	@echo "  health     Check if ttyd is responding"
+	@echo "  health     Check if web interface is responding"
 	@echo "  version    Show Claude Code version"
 	@echo "  tree       Show data directory structure"
 	@echo ""
@@ -67,17 +67,16 @@ help:
 	@echo "  clean      Remove container and images (keeps data)"
 	@echo "  purge      Remove EVERYTHING including data"
 	@echo ""
-	@echo "FileBrowser (optional):"
-	@echo "  up-files   Start with FileBrowser enabled"
-	@echo "  down-all   Stop all services including FileBrowser"
-	@echo "  files-up   Start FileBrowser only"
-	@echo "  files-down Stop FileBrowser only"
-	@echo "  files-logs Follow FileBrowser logs"
-	@echo ""
 	@echo "Quick start:"
 	@echo "  1. make build"
-	@echo "  2. make up          (or: make up-files for FileBrowser)"
+	@echo "  2. make up"
 	@echo "  3. Open http://localhost:7681"
+	@echo ""
+	@echo "Services (single port architecture):"
+	@echo "  /           Landing page"
+	@echo "  /terminal/  Claude Code terminal"
+	@echo "  /files/     File browser"
+	@echo "  /webdav/    WebDAV (if enabled)"
 	@echo ""
 
 # ─────────────────────────────────────────────────────────────
@@ -97,8 +96,11 @@ up:
 	docker compose up -d
 	@echo ""
 	@echo "🏛️  ClaudePantheon is ready!"
-	@echo "   Access at: http://localhost:7681"
-	@echo "   Data dir:  $(CLAUDE_DATA_PATH)"
+	@echo "   Landing page: http://localhost:7681"
+	@echo "   Terminal:     http://localhost:7681/terminal/"
+	@echo "   Files:        http://localhost:7681/files/"
+	@echo "   Data dir:     $(CLAUDE_DATA_PATH)"
+	@echo ""
 	@echo "   Use 'make logs' to view output"
 
 # Stop the container (preserves data)
@@ -154,9 +156,9 @@ status:
 	@echo "📊 Resources:"
 	@docker stats --no-stream claudepantheon 2>/dev/null || echo "   Container not running"
 
-# Quick health check - tests if ttyd web terminal responds
+# Quick health check - tests if nginx reverse proxy responds
 health:
-	@wget -q --spider http://localhost:7681/ && echo "✅ ttyd is responding" || echo "❌ ttyd not responding"
+	@wget -q --spider http://localhost:7681/ && echo "✅ Web interface is responding" || echo "❌ Web interface not responding"
 
 # Show installed Claude Code version
 version:
@@ -219,47 +221,9 @@ purge:
 	@echo ""
 	@read -p "Type 'DELETE' to confirm permanent deletion: " confirm; \
 	if [ "$$confirm" = "DELETE" ]; then \
-		docker compose --profile files down --rmi local; \
+		docker compose down --rmi local; \
 		rm -rf "$(CLAUDE_DATA_PATH)"/*; \
 		echo "✅ Full purge complete!"; \
 	else \
 		echo "❌ Cancelled."; \
 	fi
-
-# ─────────────────────────────────────────────────────────────
-# FILEBROWSER (Optional)
-# Web-based file manager - enable with --profile files
-# ─────────────────────────────────────────────────────────────
-
-# Start ClaudePantheon with FileBrowser enabled
-up-files:
-	@echo "🚀 Starting ClaudePantheon with FileBrowser..."
-	docker compose --profile files up -d
-	@echo ""
-	@echo "🏛️  ClaudePantheon is ready!"
-	@echo "   Terminal:     http://localhost:7681"
-	@echo "   File Browser: http://localhost:$${FILEBROWSER_PORT:-7682}"
-	@echo "   Data dir:     $(CLAUDE_DATA_PATH)"
-	@echo ""
-	@echo "   FileBrowser default login: admin / admin"
-	@echo "   Use 'make logs' to view output"
-
-# Stop all services including FileBrowser
-down-all:
-	@echo "⏹️  Stopping all services..."
-	docker compose --profile files down
-
-# Start FileBrowser only (requires claudepantheon to be running)
-files-up:
-	@echo "📁 Starting FileBrowser..."
-	docker compose --profile files up -d filebrowser
-	@echo "📁 FileBrowser: http://localhost:$${FILEBROWSER_PORT:-7682}"
-
-# Stop FileBrowser only
-files-down:
-	@echo "⏹️  Stopping FileBrowser..."
-	docker compose --profile files stop filebrowser
-
-# Follow FileBrowser logs
-files-logs:
-	docker compose --profile files logs -f filebrowser

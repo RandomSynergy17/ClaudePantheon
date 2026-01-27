@@ -203,6 +203,12 @@ init_scripts() {
         log "Installed default .zshrc"
     fi
 
+    if [ ! -f "${DATA_DIR}/scripts/start-services.sh" ]; then
+        cp "${DEFAULTS_DIR}/start-services.sh" "${DATA_DIR}/scripts/"
+        chmod +x "${DATA_DIR}/scripts/start-services.sh"
+        log "Installed default start-services.sh"
+    fi
+
     chown -R "${PUID}:${PGID}" "${DATA_DIR}/scripts"
 }
 
@@ -425,39 +431,28 @@ setup_ssh() {
     fi
 }
 
-# Start ttyd - separate exec paths to avoid command injection
-start_ttyd() {
-    log "Starting ttyd on port ${TTYD_PORT:-7681}..."
+# Start all services via start-services.sh
+# This runs nginx, php-fpm, filebrowser (optional), and ttyd
+start_services() {
+    log "Starting ClaudePantheon services..."
 
-    if [ -n "${TTYD_CREDENTIAL:-}" ]; then
-        # Validate credential format (must contain colon)
-        case "${TTYD_CREDENTIAL}" in
-            *:*)
-                log "ttyd authentication enabled"
-                # Use separate exec with -c flag to avoid shell injection
-                exec ttyd -p "${TTYD_PORT:-7681}" -W \
-                    -u "${PUID}" -g "${PGID}" \
-                    -t "fontSize=14" \
-                    -t "fontFamily=JetBrains Mono, Menlo, Monaco, monospace" \
-                    -t "theme={\"background\":\"#1e1e2e\",\"foreground\":\"#cdd6f4\"}" \
-                    -c "${TTYD_CREDENTIAL}" \
-                    "${DATA_DIR}/scripts/shell-wrapper.sh"
-                ;;
-            *)
-                error "TTYD_CREDENTIAL must be in format 'username:password'"
-                exit 1
-                ;;
-        esac
-    else
-        warn "ttyd running without authentication - set TTYD_CREDENTIAL in .env for security"
-        # Exec without -c flag
-        exec ttyd -p "${TTYD_PORT:-7681}" -W \
-            -u "${PUID}" -g "${PGID}" \
-            -t "fontSize=14" \
-            -t "fontFamily=JetBrains Mono, Menlo, Monaco, monospace" \
-            -t "theme={\"background\":\"#1e1e2e\",\"foreground\":\"#cdd6f4\"}" \
-            "${DATA_DIR}/scripts/shell-wrapper.sh"
+    # Export environment variables for start-services.sh
+    export PUID PGID
+    export INTERNAL_AUTH="${INTERNAL_AUTH:-false}"
+    export INTERNAL_CREDENTIAL="${INTERNAL_CREDENTIAL:-${TTYD_CREDENTIAL:-}}"
+    export WEBROOT_AUTH="${WEBROOT_AUTH:-false}"
+    export WEBROOT_CREDENTIAL="${WEBROOT_CREDENTIAL:-}"
+    export ENABLE_FILEBROWSER="${ENABLE_FILEBROWSER:-true}"
+    export ENABLE_WEBDAV="${ENABLE_WEBDAV:-false}"
+    export CLAUDE_BYPASS_PERMISSIONS="${CLAUDE_BYPASS_PERMISSIONS:-false}"
+
+    # Backward compatibility: TTYD_CREDENTIAL -> INTERNAL_CREDENTIAL
+    if [ -n "${TTYD_CREDENTIAL:-}" ] && [ -z "${INTERNAL_CREDENTIAL:-}" ]; then
+        export INTERNAL_CREDENTIAL="${TTYD_CREDENTIAL}"
     fi
+
+    # Run start-services.sh as claude user
+    exec su -s /bin/sh ${USERNAME} -c "${DATA_DIR}/scripts/start-services.sh"
 }
 
 # Main execution
@@ -497,7 +492,7 @@ main() {
         log "Existing installation detected"
     fi
 
-    start_ttyd
+    start_services
 }
 
 main "$@"

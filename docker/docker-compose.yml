@@ -10,6 +10,13 @@
 #   2. Run: docker compose up -d
 #   3. Open: http://localhost:7681
 #
+# ARCHITECTURE (Single Port):
+#   All services accessible via port 7681:
+#   - /           → Landing page (PHP)
+#   - /terminal/  → ttyd web terminal (Claude Code)
+#   - /files/     → FileBrowser Quantum
+#   - /webdav/    → WebDAV (optional)
+#
 # CONFIGURATION:
 #   All settings are controlled via .env file (see .env.example)
 #   Variables use ${VAR:-default} syntax for fallback values
@@ -17,13 +24,6 @@
 # VOLUMES:
 #   - Primary data at /app/data (configured via CLAUDE_DATA_PATH)
 #   - Optional host mounts at /mounts/<name> (see volumes section)
-#
-# PORTS:
-#   - 7681: Web terminal (ttyd)
-#   - 7682: FileBrowser (optional, enable with --profile files)
-#   - 2222: SSH (optional, enable via ENABLE_SSH)
-
-version: '3.8'
 
 services:
   claudepantheon:
@@ -56,9 +56,21 @@ services:
       - TERM=xterm-256color
       - COLORTERM=truecolor
 
-      # ttyd web terminal settings
-      - TTYD_PORT=7681
-      - TTYD_CREDENTIAL=${TTYD_CREDENTIAL:-}    # Format: username:password
+      # ── Two-Zone Authentication ──
+      # Internal zone: /terminal/, /files/, /webdav/
+      - INTERNAL_AUTH=${INTERNAL_AUTH:-false}
+      - INTERNAL_CREDENTIAL=${INTERNAL_CREDENTIAL:-}
+
+      # Webroot zone: / (landing page and custom apps)
+      - WEBROOT_AUTH=${WEBROOT_AUTH:-false}
+      - WEBROOT_CREDENTIAL=${WEBROOT_CREDENTIAL:-}
+
+      # Backward compatibility (maps to INTERNAL_CREDENTIAL)
+      - TTYD_CREDENTIAL=${TTYD_CREDENTIAL:-}
+
+      # ── Feature Toggles ──
+      - ENABLE_FILEBROWSER=${ENABLE_FILEBROWSER:-true}
+      - ENABLE_WEBDAV=${ENABLE_WEBDAV:-false}
 
       # Optional features
       - ENABLE_SSH=${ENABLE_SSH:-}              # Set any value to enable
@@ -70,14 +82,14 @@ services:
       - CLAUDE_BYPASS_PERMISSIONS=${CLAUDE_BYPASS_PERMISSIONS:-false}  # Skip permission prompts
 
       # System
-      - TZ=${TZ:-Asia/Dubai}
+      - TZ=${TZ:-UTC}
 
     # ─────────────────────────────────────────────────────────
     # PORT MAPPINGS
-    # Format: "host:container"
+    # Single port architecture - nginx reverse proxy
     # ─────────────────────────────────────────────────────────
     ports:
-      - "7681:7681"     # ttyd web terminal - access at http://localhost:7681
+      - "7681:7681"     # All services via nginx (/, /terminal/, /files/, /webdav/)
       - "2222:22"       # SSH server (requires ENABLE_SSH=true)
 
     # ─────────────────────────────────────────────────────────
@@ -150,64 +162,3 @@ services:
       timeout: 10s                # Fail if no response in 10s
       retries: 3                  # Unhealthy after 3 failures
       start_period: 10s           # Grace period on startup
-
-  # ═══════════════════════════════════════════════════════════
-  # FILEBROWSER QUANTUM (Optional)
-  # ═══════════════════════════════════════════════════════════
-  # Web-based file manager for visual file management
-  #
-  # Enable with:
-  #   docker compose --profile files up -d
-  #   make up-files
-  #
-  # Access at: http://localhost:7682 (or FILEBROWSER_PORT)
-  # Default credentials: admin / admin
-  # ───────────────────────────────────────────────────────────
-  filebrowser:
-    image: gtstef/filebrowser:stable-slim
-    container_name: claudepantheon-files
-    hostname: claudepantheon-files
-    restart: unless-stopped
-    profiles:
-      - files                     # Only starts with --profile files
-
-    user: "${PUID:-1000}:${PGID:-1000}"
-
-    environment:
-      - TZ=${TZ:-UTC}
-      - FB_BASEURL=/
-
-    volumes:
-      # Main data directory - maps to /srv/data in FileBrowser
-      - ${CLAUDE_DATA_PATH:-./data}:/srv/data
-
-      # FileBrowser config persistence
-      - ${CLAUDE_DATA_PATH:-./data}/filebrowser:/home/filebrowser/data
-
-      # ┌─────────────────────────────────────────────────────────────┐
-      # │  HOST MOUNTS - Mirror the same mounts from claudepantheon  │
-      # │  to access host directories via FileBrowser                │
-      # │                                                             │
-      # │  Use /srv/mounts/<name> to match /mounts/<name> in Claude  │
-      # └─────────────────────────────────────────────────────────────┘
-      #
-      # Examples - uncomment and modify to match claudepantheon mounts:
-      # - /home/user:/srv/mounts/home
-      # - /media/storage:/srv/mounts/storage
-      # - /var/www:/srv/mounts/www:ro
-
-    ports:
-      - "${FILEBROWSER_PORT:-7682}:80"
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s

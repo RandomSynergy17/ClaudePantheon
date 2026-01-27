@@ -83,7 +83,7 @@ Spin up isolated environments to test new workflows, MCP integrations, or Claude
 - **Web terminal** — Full terminal via any browser
 - **No client install** — Just open a URL
 - **Mobile friendly** — Works on tablets and phones
-- **Optional auth** — Secure with username/password
+- **Landing page** — Professional entry point with quick access
 
 </td>
 </tr>
@@ -102,8 +102,8 @@ Spin up isolated environments to test new workflows, MCP integrations, or Claude
 ### 🔌 Extensible
 - **MCP ready** — GitHub, Postgres, Home Assistant, more
 - **Host mounts** — Access any directory on the host
-- **Customizable scripts** — Modify startup behavior
-- **Setup wizard** — Generates your CLAUDE.md automatically
+- **Customizable webroot** — Add custom PHP apps
+- **WebDAV support** — Mount as network drive
 
 </td>
 </tr>
@@ -113,17 +113,17 @@ Spin up isolated environments to test new workflows, MCP integrations, or Claude
 
 | Feature | Description |
 |---------|-------------|
-| 🏔️ **Alpine-Based** | Minimal ~50MB base image, fast startup |
+| 🏔️ **Alpine-Based** | Minimal base image, fast startup |
 | 🔄 **Persistent Sessions** | All conversations continue where you left off |
-| 🌐 **Web Terminal** | Connect via browser using ttyd |
+| 🌐 **Single Port** | All services via one port (nginx reverse proxy) |
+| 🏠 **Landing Page** | Customizable PHP landing page with quick access buttons |
+| 📁 **FileBrowser** | Web-based file management built-in |
+| 🔗 **WebDAV** | Mount workspace as network drive (optional) |
 | 🐚 **Oh My Zsh** | Beautiful shell with syntax highlighting & autosuggestions |
 | 🔌 **MCP Ready** | Pre-configured for Model Context Protocol integrations |
 | 📦 **Custom Packages** | Install Alpine packages without rebuilding |
 | 👤 **User Mapping** | Configurable UID/GID for permission-free bind mounts |
-| 📁 **Single Volume** | All data in one directory for easy backup |
-| 🔐 **Secure** | Optional authentication for web terminal |
-| 🚀 **Auto-Setup** | Interactive wizard builds your CLAUDE.md on first run |
-| ⚡ **Runtime Settings** | Toggle bypass permissions without restart |
+| 🔐 **Two-Zone Auth** | Separate credentials for landing page vs services |
 
 ---
 
@@ -141,7 +141,28 @@ make build
 make up
 
 # Open http://localhost:7681
-# Complete the setup wizard, then type 'cc' to start!
+# You'll see the landing page with Terminal, Files, and PHP Info buttons
+# Click Terminal and complete the setup wizard, then type 'cc' to start!
+```
+
+## 🏗️ Architecture
+
+All services accessible via a single port:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Browser (Port 7681)                       │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                       nginx                                  │
+│                  (Reverse Proxy)                             │
+│                                                              │
+│   /              → Landing Page (PHP)                        │
+│   /terminal/     → ttyd (Claude Code)                        │
+│   /files/        → FileBrowser Quantum                       │
+│   /webdav/       → nginx WebDAV (optional)                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## 📜 Commands
@@ -179,20 +200,33 @@ All persistent data lives in a single mounted directory (configurable via `CLAUD
 ```
 docker/
 ├── Dockerfile              # Alpine image definition
-├── docker-compose.yml      # Volume mount configuration
+├── docker-compose.yml      # Container configuration
 ├── Makefile                # Management commands
-├── .env.example            # Host configuration template
-├── scripts/                # Default scripts (copied to data/ on first run)
+├── .env.example            # Configuration template
+├── defaults/               # Default configs (copied on first run)
+│   ├── nginx/
+│   │   └── nginx.conf      # Reverse proxy configuration
+│   └── webroot/
+│       └── public_html/
+│           └── index.php   # Landing page
+├── scripts/
 │   ├── entrypoint.sh       # Container bootstrap
+│   ├── start-services.sh   # Service supervisor
 │   ├── shell-wrapper.sh    # First-run wizard
 │   └── .zshrc              # Shell configuration
-│
+
 # Data directory (default: /docker/appdata/claudepantheon)
 $CLAUDE_DATA_PATH/          # ALL PERSISTENT DATA (auto-created)
 ├── workspace/              # Your projects
 ├── claude/                 # Session history
 ├── mcp/                    # MCP configuration
 │   └── mcp.json            # MCP server configuration
+├── nginx/                  # nginx config (customizable)
+│   └── nginx.conf
+├── webroot/                # Web content (customizable)
+│   └── public_html/
+│       └── index.php       # Landing page
+├── filebrowser/            # FileBrowser database
 ├── ssh/                    # SSH keys (auto 700/600 permissions)
 ├── logs/                   # Container logs (optional)
 ├── zsh-history/            # Shell history
@@ -200,6 +234,7 @@ $CLAUDE_DATA_PATH/          # ALL PERSISTENT DATA (auto-created)
 ├── python-venvs/           # Python virtual environments
 ├── scripts/                # Runtime scripts (all customizable!)
 │   ├── entrypoint.sh       # Container bootstrap
+│   ├── start-services.sh   # Service supervisor
 │   ├── shell-wrapper.sh    # First-run wizard
 │   └── .zshrc              # Shell configuration
 ├── gitconfig               # Git configuration
@@ -207,21 +242,44 @@ $CLAUDE_DATA_PATH/          # ALL PERSISTENT DATA (auto-created)
 └── .env                    # Container environment
 ```
 
-**Note:** All scripts in `$CLAUDE_DATA_PATH/scripts/` are copied from defaults on first run. You can customize `entrypoint.sh`, `shell-wrapper.sh`, and `.zshrc` without rebuilding the image.
+## 🔐 Authentication
 
-### Data Path Configuration
+ClaudePantheon uses a two-zone authentication system:
 
-Set `CLAUDE_DATA_PATH` in `docker/.env` to customize where data is stored:
+| Zone | Endpoints | Use Case |
+|------|-----------|----------|
+| **Internal** | `/terminal/`, `/files/`, `/webdav/` | Core services |
+| **Webroot** | `/` (landing page, custom apps) | Public-facing content |
 
+### Common Configurations
+
+**1. No authentication (development/trusted networks):**
 ```bash
-# Default location
-CLAUDE_DATA_PATH=/docker/appdata/claudepantheon
+INTERNAL_AUTH=false
+WEBROOT_AUTH=false
+```
 
-# Or use a relative path
-CLAUDE_DATA_PATH=./data
+**2. Protect everything with same credentials:**
+```bash
+INTERNAL_AUTH=true
+INTERNAL_CREDENTIAL=admin:secretpassword
+WEBROOT_AUTH=true
+# WEBROOT_CREDENTIAL not set = uses INTERNAL_CREDENTIAL
+```
 
-# Or any absolute path
-CLAUDE_DATA_PATH=/home/user/claudepantheon-data
+**3. Public landing page, protected services:**
+```bash
+INTERNAL_AUTH=true
+INTERNAL_CREDENTIAL=admin:secretpassword
+WEBROOT_AUTH=false
+```
+
+**4. Different credentials for each zone:**
+```bash
+INTERNAL_AUTH=true
+INTERNAL_CREDENTIAL=admin:secretpassword
+WEBROOT_AUTH=true
+WEBROOT_CREDENTIAL=guest:guestpassword
 ```
 
 ## 🛠️ Makefile Commands
@@ -241,7 +299,7 @@ make dev      # Run in foreground with logs
 
 # Status & Health
 make status   # Show container status and resources
-make health   # Check ttyd web terminal health
+make health   # Check web interface health
 make version  # Show Claude Code version
 make tree     # Show data directory structure
 
@@ -250,46 +308,29 @@ make backup   # Backup entire data directory
 make update   # Update Claude Code to latest
 make clean    # Remove container and images (keeps data)
 make purge    # Remove everything including data
-
-# FileBrowser (optional)
-make up-files   # Start with FileBrowser enabled
-make down-all   # Stop all services
-make files-up   # Start FileBrowser only
-make files-down # Stop FileBrowser only
-make files-logs # Follow FileBrowser logs
 ```
 
-## 📁 FileBrowser (Optional)
+## 🌐 Landing Page
 
-ClaudePantheon includes optional web-based file management via [FileBrowser Quantum](https://github.com/gtsteffaniak/filebrowser).
+The landing page is a PHP file at `data/webroot/public_html/index.php`. Features:
 
-### Enable FileBrowser
+- **Three quick-access buttons**: Terminal, Files, PHP Info
+- **Inline PHP info**: Accordion that expands without leaving the page
+- **Catppuccin Mocha theme**: Dark mode, easy on the eyes
+- **Mobile responsive**: Buttons stack on smaller screens
+- **Customizable**: Edit the file to add branding, links, or features
 
-```bash
-# Start with FileBrowser enabled
-make up-files
+### Customizing the Landing Page
 
-# Or manually
-docker compose --profile files up -d
-```
+Edit `$CLAUDE_DATA_PATH/webroot/public_html/index.php` to:
+- Change branding/logo
+- Add custom links or buttons
+- Include system status widgets
+- Add your own PHP applications
 
-### Access
+## 📁 FileBrowser
 
-| Service | URL | Default Port |
-|---------|-----|--------------|
-| Terminal | http://localhost:7681 | `7681` |
-| Files | http://localhost:7682 | `FILEBROWSER_PORT` |
-
-**Default credentials:** `admin` / `admin`
-
-### Configuration
-
-Set in `docker/.env`:
-```bash
-FILEBROWSER_PORT=7682        # Change if needed for reverse proxy
-FILEBROWSER_USERNAME=admin   # Web UI username
-FILEBROWSER_PASSWORD=secret  # Web UI password
-```
+FileBrowser Quantum is embedded in the container and accessible at `/files/`.
 
 ### Features
 
@@ -297,23 +338,45 @@ FILEBROWSER_PASSWORD=secret  # Web UI password
 - ⬆️ Upload files via drag & drop
 - ⬇️ Download files and folders
 - ✏️ Edit text files in browser
-- 🔍 Fast search across all files (indexed)
+- 🔍 Fast indexed search across all files
 - 🔗 Generate shareable links
 - 📱 Mobile-friendly interface
 
-### Host Mounts in FileBrowser
+### Disable FileBrowser
 
-If you've configured host directory mounts in `docker-compose.yml`, mirror them for FileBrowser to access:
-
-```yaml
-# In the filebrowser service volumes section:
-volumes:
-  - ${CLAUDE_DATA_PATH:-./data}:/srv/data
-  - /home/user:/srv/mounts/home           # Same as claudepantheon
-  - /media/storage:/srv/mounts/storage    # Same as claudepantheon
+```bash
+# In docker/.env
+ENABLE_FILEBROWSER=false
 ```
 
-Files appear at `/srv/data/` and `/srv/mounts/` in FileBrowser, corresponding to `/app/data/` and `/mounts/` in the Claude terminal.
+## 🔗 WebDAV
+
+WebDAV allows you to mount your ClaudePantheon workspace as a network drive.
+
+### Enable WebDAV
+
+```bash
+# In docker/.env
+ENABLE_WEBDAV=true
+```
+
+### Connect
+
+**macOS Finder:**
+1. Go → Connect to Server (⌘K)
+2. Enter: `http://localhost:7681/webdav/`
+3. Enter credentials if auth is enabled
+
+**Windows Explorer:**
+1. This PC → Map Network Drive
+2. Enter: `http://localhost:7681/webdav/`
+3. Enter credentials if auth is enabled
+
+**Linux:**
+```bash
+# Using davfs2
+sudo mount -t davfs http://localhost:7681/webdav/ /mnt/claudepantheon
+```
 
 ## 📦 Custom Packages
 
@@ -433,7 +496,7 @@ Edit `./data/mcp/mcp.json` to add MCP servers:
 
 ### Essential Configuration
 
-1. **Set TTYD_CREDENTIAL** in `docker/.env` - Prevents unauthorized access
+1. **Set authentication** in `docker/.env` - Use `INTERNAL_AUTH=true` with credentials
 2. **Use a reverse proxy** - Add HTTPS with nginx/Caddy
 3. **Limit port exposure** - Only expose ports you need
 
@@ -488,35 +551,6 @@ sudo chown -R $(id -u):$(id -g) /path/to/data
 ```bash
 rm data/scripts/entrypoint.sh
 make restart
-```
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Your Browser                              │
-│                  http://localhost:7681                       │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                     ttyd                                     │
-│              (Web Terminal Server)                           │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                   oh-my-zsh                                  │
-│         (with custom aliases: cc, cc-new, etc.)              │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                 Claude Code                                  │
-│    --continue flag ensures session persistence               │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────────┐
-│                  MCP Servers                                 │
-│    (GitHub, Home Assistant, Postgres, etc.)                  │
-└─────────────────────────────────────────────────────────────┘
 ```
 
 ## 💾 Backup
