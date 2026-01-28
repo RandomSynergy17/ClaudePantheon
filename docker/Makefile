@@ -31,7 +31,15 @@
 # Override by setting CLAUDE_DATA_PATH in .env
 CLAUDE_DATA_PATH ?= ./data
 
-.PHONY: help build up down logs shell restart clean status backup update purge rebuild dev health version tree
+# ─────────────────────────────────────────────────────────────
+# REGISTRY CONFIGURATION (for GHCR push)
+# ─────────────────────────────────────────────────────────────
+REGISTRY ?= ghcr.io
+IMAGE_NAME ?= randomsynergy17/claudepantheon
+IMAGE_TAG ?= latest
+FULL_IMAGE := $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+
+.PHONY: help build up down logs shell restart clean status backup update purge rebuild dev health version tree login push push-all
 
 # ─────────────────────────────────────────────────────────────
 # DEFAULT TARGET (runs when you just type 'make')
@@ -66,6 +74,11 @@ help:
 	@echo "  update     Update Claude Code to latest"
 	@echo "  clean      Remove container and images (keeps data)"
 	@echo "  purge      Remove EVERYTHING including data"
+	@echo ""
+	@echo "Registry (GHCR):"
+	@echo "  login      Log in to GitHub Container Registry"
+	@echo "  push       Build and push image to GHCR"
+	@echo "  push-all   Push with latest + git SHA tags"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  1. make build"
@@ -227,3 +240,36 @@ purge:
 	else \
 		echo "❌ Cancelled."; \
 	fi
+
+# ─────────────────────────────────────────────────────────────
+# REGISTRY (Push to GHCR)
+# ─────────────────────────────────────────────────────────────
+
+# Log in to GitHub Container Registry
+# Requires: GITHUB_TOKEN env var or gh CLI authenticated
+login:
+	@echo "🔐 Logging in to $(REGISTRY)..."
+	@if [ -n "$$GITHUB_TOKEN" ]; then \
+		echo "$$GITHUB_TOKEN" | docker login $(REGISTRY) -u $(REGISTRY) --password-stdin; \
+	elif command -v gh >/dev/null 2>&1; then \
+		gh auth token | docker login $(REGISTRY) -u $(REGISTRY) --password-stdin; \
+	else \
+		echo "❌ Set GITHUB_TOKEN or install gh CLI"; \
+		exit 1; \
+	fi
+	@echo "✅ Logged in to $(REGISTRY)"
+
+# Build and push image to GHCR with latest tag
+push: build
+	@echo "📦 Pushing $(FULL_IMAGE)..."
+	docker push $(FULL_IMAGE)
+	@echo "✅ Pushed $(FULL_IMAGE)"
+
+# Push with both latest and git SHA tags
+push-all: build
+	@echo "📦 Pushing $(REGISTRY)/$(IMAGE_NAME)..."
+	$(eval GIT_SHA := $(shell git rev-parse --short HEAD))
+	docker tag $(FULL_IMAGE) $(REGISTRY)/$(IMAGE_NAME):$(GIT_SHA)
+	docker push $(REGISTRY)/$(IMAGE_NAME):latest
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(GIT_SHA)
+	@echo "✅ Pushed: latest, $(GIT_SHA)"

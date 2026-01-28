@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Environment and secrets
+docker/.env
+ghrc-key.txt
+
+# Runtime data
+docker/data/
+
+# Logs
+logs/

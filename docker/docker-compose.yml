@@ -36,6 +36,8 @@ services:
       # Note: UID/GID mapping happens at runtime via entrypoint.sh, not at build time
       # This prevents conflicts with system groups when building on different platforms
 
+    image: ghcr.io/randomsynergy17/claudepantheon:latest
+
     container_name: claudepantheon
     hostname: claudepantheon
     restart: unless-stopped           # Auto-restart on failure/reboot
