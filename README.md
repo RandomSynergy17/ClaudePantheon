@@ -20,7 +20,7 @@
 
 ClaudePantheon gives you a **persistent, always-on Claude Code environment** that you can access from any device with a web browser. Unlike running Claude Code locally, your sessions, context, and workspace persist across restarts — Claude remembers your projects, preferences, and ongoing work.
 
-Think of it as your personal AI development workstation in the cloud (or on your server), ready whenever you need it.
+The name is inspired by the show [*Pantheon*](https://en.wikipedia.org/wiki/Pantheon_(TV_series)) (based on Ken Liu's short stories), where consciousness is uploaded into a persistent digital environment. ClaudePantheon applies that concept to Claude Code — a temple where your AI assistant lives permanently, remembers everything, and is always available.
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
