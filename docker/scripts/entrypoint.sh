@@ -43,6 +43,14 @@ if [ "${SCRIPT_PATH}" = "${DEFAULTS_DIR}/entrypoint.sh" ]; then
         done
     fi
 
+    # Update nginx config from image defaults (unless .keep marker exists)
+    if [ -d "${DATA_DIR}" ] && [ ! -f "${DATA_DIR}/nginx/.keep" ]; then
+        mkdir -p "${DATA_DIR}/nginx"
+        if [ -f "${DEFAULTS_DIR}/nginx/nginx.conf" ]; then
+            cp "${DEFAULTS_DIR}/nginx/nginx.conf" "${DATA_DIR}/nginx/nginx.conf"
+        fi
+    fi
+
     # Redirect to custom entrypoint if it exists
     if [ -f "${CUSTOM_ENTRYPOINT}" ]; then
         export CLAUDEPANTHEON_DEPTH=$((CLAUDEPANTHEON_DEPTH + 1))
