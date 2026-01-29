@@ -129,25 +129,31 @@ log_info "Configuring nginx..."
 NGINX_CONF="/tmp/nginx.conf"
 cp "$DATA_DIR/nginx/nginx.conf" "$NGINX_CONF"
 
-# Internal zone auth replacement
+# Internal zone auth: write include file
+AUTH_INTERNAL_INCLUDE="/tmp/auth-internal.conf"
 if [ -f "$HTPASSWD_INTERNAL" ]; then
-    AUTH_INTERNAL='auth_basic "ClaudePantheon Internal";
-            auth_basic_user_file /tmp/htpasswd-internal;'
+    cat > "$AUTH_INTERNAL_INCLUDE" <<'AUTHEOF'
+auth_basic "ClaudePantheon Internal";
+auth_basic_user_file /tmp/htpasswd-internal;
+AUTHEOF
 else
-    AUTH_INTERNAL=""
+    : > "$AUTH_INTERNAL_INCLUDE"
 fi
 
-# Webroot zone auth replacement
+# Webroot zone auth: write include file
+AUTH_WEBROOT_INCLUDE="/tmp/auth-webroot.conf"
 if [ -f "$HTPASSWD_WEBROOT" ]; then
-    AUTH_WEBROOT='auth_basic "ClaudePantheon";
-            auth_basic_user_file /tmp/htpasswd-webroot;'
+    cat > "$AUTH_WEBROOT_INCLUDE" <<'AUTHEOF'
+auth_basic "ClaudePantheon";
+auth_basic_user_file /tmp/htpasswd-webroot;
+AUTHEOF
 else
-    AUTH_WEBROOT=""
+    : > "$AUTH_WEBROOT_INCLUDE"
 fi
 
-# Replace auth placeholders
-sed -i "s|# AUTH_INTERNAL_PLACEHOLDER.*|$AUTH_INTERNAL|g" "$NGINX_CONF"
-sed -i "s|# AUTH_WEBROOT_PLACEHOLDER.*|$AUTH_WEBROOT|g" "$NGINX_CONF"
+# Replace auth placeholders with include directives
+sed -i 's|# AUTH_INTERNAL_PLACEHOLDER.*|include /tmp/auth-internal.conf;|g' "$NGINX_CONF"
+sed -i 's|# AUTH_WEBROOT_PLACEHOLDER.*|include /tmp/auth-webroot.conf;|g' "$NGINX_CONF"
 
 # WebDAV configuration
 if [ "$ENABLE_WEBDAV" != "true" ]; then
