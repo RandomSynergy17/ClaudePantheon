@@ -311,7 +311,7 @@ EOF
 [init]
     defaultBranch = main
 [core]
-    editor = vim
+    editor = nano
 [alias]
     st = status
     co = checkout

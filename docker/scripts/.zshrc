@@ -38,7 +38,7 @@ preexec() {
 }
 
 # Environment
-export EDITOR='vim'
+export EDITOR='nano'
 export LANG='en_US.UTF-8'
 export PATH="$HOME/.local/bin:$PATH"
 
@@ -65,7 +65,7 @@ claude_mcp() {
     read "choice?Select option: "
     case $choice in
         1) echo "" && echo "\033[0;32mCurrent MCP Configuration:\033[0m" && cat "${MCP_CONFIG}" 2>/dev/null | jq . || echo "No configuration found" ;;
-        2) ${EDITOR:-vim} "${MCP_CONFIG}" ;;
+        2) ${EDITOR:-nano} "${MCP_CONFIG}" ;;
         3) echo "Documentation: https://docs.anthropic.com/en/docs/claude-code/mcp" ;;
     esac
 }
@@ -268,9 +268,9 @@ Note: If you see \"No conversation found\", use cc-new to start!"'
 alias ccw='cd /app/data/workspace'
 alias ccd='cd /app/data'
 alias ccmnt='cd /mounts && ls -la'
-alias cce='${EDITOR:-vim} /app/data/workspace/CLAUDE.md'
-alias ccm='${EDITOR:-vim} /app/data/mcp/mcp.json'
-alias ccp='${EDITOR:-vim} /app/data/custom-packages.txt'
+alias cce='${EDITOR:-nano} /app/data/workspace/CLAUDE.md'
+alias ccm='${EDITOR:-nano} /app/data/mcp/mcp.json'
+alias ccp='${EDITOR:-nano} /app/data/custom-packages.txt'
 
 # Utility aliases
 alias ll='ls -la'
