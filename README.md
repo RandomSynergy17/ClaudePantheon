@@ -322,6 +322,8 @@ WEBROOT_CREDENTIAL=guest:guestpassword
 | `cc-bypass` | Toggle bypass permissions `[on\|off]` |
 | `cc-settings` | Show current settings |
 | `cc-info` | Show environment information |
+| `cc-community` | Install community skills, commands & rules |
+| `cc-factory-reset` | Factory reset — wipe all data, fresh install |
 | `cc-help` | Show all available commands |
 
 ### Navigation Aliases
@@ -369,6 +371,8 @@ All persistent data lives in `$CLAUDE_DATA_PATH`. On first run, defaults from th
 $CLAUDE_DATA_PATH/
 ├── workspace/              # Your projects
 ├── claude/                 # Session history and Claude state
+│   ├── commands/           # Community slash commands (via cc-community)
+│   └── rules/              # Community rules (via cc-community)
 ├── mcp/
 │   └── mcp.json            # MCP server configuration
 ├── nginx/
@@ -604,6 +608,59 @@ Edit `$CLAUDE_DATA_PATH/mcp/mcp.json` to add MCP servers. The default config inc
 
 ---
 
+## 🧩 Community Content
+
+ClaudePantheon includes a built-in installer for curated Claude Code commands and rules from the open-source community. Content is downloaded on demand from GitHub — no extra image bloat.
+
+### Installing
+
+During the initial setup wizard (questions 11-12), or anytime with:
+
+```bash
+cc-community    # Install community commands & rules
+cc-mcp          # Option 3: auto-configure MCP servers
+```
+
+### Available Commands
+
+Downloaded to `~/.claude/commands/` and usable as slash commands in Claude Code:
+
+| Command | Description |
+|---------|-------------|
+| `/plan` | Plan implementation before coding |
+| `/code-review` | Structured code review with severity levels |
+| `/tdd` | Test-driven development workflow |
+| `/build-fix` | Fix build errors iteratively |
+| `/refactor-clean` | Clean up and remove dead code |
+| `/verify` | Verify changes before committing |
+| `/checkpoint` | Save verification state |
+
+### Available Rules
+
+Downloaded to `~/.claude/rules/` and always active during Claude sessions:
+
+| Rule | Description |
+|------|-------------|
+| Security | Prevent credential leaks, injection flaws |
+| Coding Style | Clean code standards |
+| Testing | Test coverage requirements |
+| Git Workflow | Clean commit practices |
+
+### MCP Auto-Configuration
+
+The setup wizard and `cc-mcp` now auto-configure MCP servers by prompting for tokens and writing directly to `mcp.json`. Supported servers: GitHub, Brave Search, Memory, PostgreSQL, Filesystem, Puppeteer, and Context7.
+
+### Attribution
+
+Community content is sourced from these open-source projects — all credit to the original authors:
+
+- **[everything-claude-code](https://github.com/affaan-m/everything-claude-code)** by Affaan M — Commands, rules, skills, and agents for Claude Code workflows
+- **[claude-code-best-practice](https://github.com/shanraisshan/claude-code-best-practice)** by Shan Raisshan — Architecture patterns, CLAUDE.md best practices, and workflow guidance
+
+Attribution is also stored in `~/.claude/COMMUNITY_CREDITS.md` inside the container.
+
+---
+
 ## Claude Code Settings
 
 ### API Authentication
@@ -643,6 +700,84 @@ cc-settings       # View current settings
 ### Default Shell
 
 Claude Code uses zsh by default (`CLAUDE_CODE_SHELL=/bin/zsh`), ensuring Claude's shell commands use the same environment as your interactive terminal.
+
+---
+
+## 🐚 Shell Customization
+
+The shell environment is fully customizable by editing `$CLAUDE_DATA_PATH/scripts/.zshrc`. Changes persist across container rebuilds. After editing, start a new terminal session (or run `source ~/.zshrc`) to apply.
+
+### Default Editor
+
+The `EDITOR` environment variable controls which editor is used by `cce`, `ccm`, `ccp`, and `cc-mcp`:
+
+```bash
+# In $CLAUDE_DATA_PATH/scripts/.zshrc
+export EDITOR='nano'      # default
+export EDITOR='vim'       # for vim users
+export EDITOR='micro'     # modern terminal editor
+```
+
+### Oh My Zsh Theme
+
+Change the shell prompt theme by editing `ZSH_THEME`:
+
+```bash
+ZSH_THEME="robbyrussell"   # default
+ZSH_THEME="agnoster"       # powerline-style
+ZSH_THEME="dst"            # minimal with git info
+```
+
+Browse all themes: https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
+
+### Plugins
+
+The following Oh My Zsh plugins are enabled by default:
+
+| Plugin | What it provides |
+|--------|-----------------|
+| `git` | Git aliases and functions (`gst`, `gco`, `gb`, etc.) |
+| `docker` | Docker command completions |
+| `npm` | npm command completions and aliases |
+| `python` | Python/pip aliases and virtualenv helpers |
+| `history` | History search aliases (`h`, `hs`) |
+| `sudo` | Press <kbd>Esc</kbd> twice to prepend `sudo` to last command |
+| `web-search` | Search from terminal (`google`, `ddg`, `github` commands) |
+| `copypath` | Copy current directory path to clipboard |
+| `copyfile` | Copy file contents to clipboard |
+| `jsontools` | JSON formatting tools (`pp_json`, `is_json`, `urlencode_json`) |
+| `zsh-autosuggestions` | Fish-like inline command suggestions |
+| `zsh-syntax-highlighting` | Real-time syntax coloring as you type |
+
+Add or remove plugins by editing the `plugins=()` array in `.zshrc`.
+
+### History
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `HISTSIZE` | `50000` | Max entries kept in memory |
+| `SAVEHIST` | `50000` | Max entries saved to disk |
+| `SHARE_HISTORY` | enabled | Share history across concurrent sessions |
+| `HIST_IGNORE_DUPS` | enabled | Skip duplicate consecutive commands |
+
+History is stored in `$CLAUDE_DATA_PATH/zsh-history/` and persists across restarts.
+
+### Additional Aliases
+
+Beyond the Claude Code aliases documented above, `.zshrc` includes:
+
+**Utility:**
+`ll` (ls -la), `la` (ls -A), `l` (ls -CF), `..` (cd ..), `...` (cd ../..)
+
+**Git:**
+`gs` (status), `ga` (add), `gc` (commit), `gp` (push), `gl` (log --oneline -10), `gd` (diff)
+
+**Docker:**
+`dps` (ps), `dpa` (ps -a), `di` (images)
+
+### Color Fix
+
+The `.zshrc` includes `precmd` and `preexec` hooks that reset terminal colors before and after each command. This prevents color bleeding from Claude Code's colored error output into your prompt.
 
 ---
 
@@ -745,6 +880,43 @@ make down
 tar -xzf claudepantheon-backup.tar.gz -C docker/
 make up
 ```
+
+---
+
+## 🔄 Factory Reset
+
+Reset ClaudePantheon to a fresh install state from inside the container:
+
+```bash
+cc-factory-reset
+```
+
+This command has a **three-stage confirmation process** to prevent accidental data loss:
+
+1. **Step 1:** Type `yes` to confirm intent
+2. **Step 2:** Type `YES` (uppercase) to double-confirm
+3. **Step 3:** Retype a randomly generated three-word challenge phrase
+
+### What Gets Deleted
+
+Everything under `$CLAUDE_DATA_PATH` except SSH keys:
+
+- Workspace files and projects
+- Claude session history and conversations
+- MCP server configuration
+- Community commands, rules, and skills
+- Custom packages list, nginx config, webroot
+- Shell configuration (.zshrc customizations)
+- FileBrowser database, git config, logs, caches
+
+### What Gets Preserved
+
+- **SSH keys** (`$CLAUDE_DATA_PATH/ssh/`) — preserved by default, with an optional double-confirmation prompt to delete them too
+- **Host volume mounts** (`/mounts/`) — completely untouched (separate Docker volumes)
+
+After the reset completes, the container automatically restarts and re-initializes from image defaults, presenting the first-run setup wizard.
+
+**Tip:** Run `make backup` before resetting if you want the option to restore later.
 
 ---
 

@@ -60,13 +60,15 @@ claude_mcp() {
     echo ""
     echo "1. View current configuration"
     echo "2. Edit configuration"
-    echo "3. Show documentation"
+    echo "3. Add/configure MCP server"
+    echo "4. Show documentation"
     echo ""
     read "choice?Select option: "
     case $choice in
         1) echo "" && echo "\033[0;32mCurrent MCP Configuration:\033[0m" && cat "${MCP_CONFIG}" 2>/dev/null | jq . || echo "No configuration found" ;;
         2) ${EDITOR:-nano} "${MCP_CONFIG}" ;;
-        3) echo "Documentation: https://docs.anthropic.com/en/docs/claude-code/mcp" ;;
+        3) /app/data/scripts/shell-wrapper.sh --mcp-add ;;
+        4) echo "Documentation: https://docs.anthropic.com/en/docs/claude-code/mcp" ;;
     esac
 }
 
@@ -242,25 +244,31 @@ alias cc-mcp='claude_mcp'
 alias cc-bypass='cc_bypass'
 alias cc-settings='cc_settings'
 alias cc-info='cc_settings && claude --version'
+alias cc-community='/app/data/scripts/shell-wrapper.sh --community-only'
+alias cc-factory-reset='/app/data/scripts/shell-wrapper.sh --factory-reset'
 alias cc-help='echo "
 ClaudePantheon Commands:
 
 Starting Sessions:
-  cc-new      - Start a NEW Claude session (use this first!)
-  cc          - Continue LAST session (requires existing session)
-  cc-resume   - Resume specific session (interactive picker)
-  cc-list     - List all sessions
+  cc-new            - Start a NEW Claude session (use this first!)
+  cc                - Continue LAST session (requires existing session)
+  cc-resume         - Resume specific session (interactive picker)
+  cc-list           - List all sessions
 
 Configuration:
-  cc-setup    - Run CLAUDE.md setup wizard
-  cc-mcp      - Manage MCP servers
-  cc-bypass   - Toggle bypass permissions [on|off]
-  cc-settings - Show current settings
-  cc-info     - Show environment info
+  cc-setup          - Run CLAUDE.md setup wizard
+  cc-mcp            - Manage MCP servers
+  cc-community      - Install community skills, commands & rules
+  cc-bypass         - Toggle bypass permissions [on|off]
+  cc-settings       - Show current settings
+  cc-info           - Show environment info
+
+Maintenance:
+  cc-factory-reset  - Factory reset (wipe all data, fresh install)
 
 Navigation:
-  ccw         - Go to workspace
-  ccd         - Go to data directory
+  ccw               - Go to workspace
+  ccd               - Go to data directory
 
 Note: If you see \"No conversation found\", use cc-new to start!"'
 

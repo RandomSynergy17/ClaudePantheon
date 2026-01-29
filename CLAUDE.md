@@ -55,7 +55,9 @@ cc-resume       # Resume last session (same as cc)
 cc-list         # Interactive session picker
 cc-setup        # Run CLAUDE.md setup wizard
 cc-mcp          # Manage MCP servers
-cc-bypass       # Toggle bypass permissions [on|off]
+cc-community      # Install community skills, commands & rules
+cc-factory-reset  # Factory reset (wipe all data, fresh install)
+cc-bypass         # Toggle bypass permissions [on|off]
 cc-settings     # Show current settings
 cc-info         # Show environment info
 
