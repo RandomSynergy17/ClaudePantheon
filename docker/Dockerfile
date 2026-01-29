@@ -221,7 +221,7 @@ EXPOSE 7681 22
 # Checks: ttyd responding + Claude Code installed
 # ─────────────────────────────────────────────────────────────
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget -q --spider http://localhost:7681/
+    CMD wget -q --spider http://localhost:7681/health
 
 # ─────────────────────────────────────────────────────────────
 # ENTRYPOINT

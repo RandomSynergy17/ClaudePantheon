@@ -159,7 +159,7 @@ services:
     # Docker uses this to monitor container health
     # ─────────────────────────────────────────────────────────
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7681/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7681/health"]
       interval: 30s               # Check every 30 seconds
       timeout: 10s                # Fail if no response in 10s
       retries: 3                  # Unhealthy after 3 failures
