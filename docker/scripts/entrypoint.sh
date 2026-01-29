@@ -24,11 +24,30 @@ if [ "${CLAUDEPANTHEON_DEPTH}" -gt 2 ]; then
     exit 1
 fi
 
-# Check if custom entrypoint exists and we're running from defaults
+# Before redirecting to custom entrypoint, update scripts from image defaults
+# This ensures bug fixes propagate even when the data volume has old copies
 SCRIPT_PATH="$(realpath "$0" 2>/dev/null || readlink -f "$0" 2>/dev/null || echo "$0")"
-if [ -f "${CUSTOM_ENTRYPOINT}" ] && [ "${SCRIPT_PATH}" = "${DEFAULTS_DIR}/entrypoint.sh" ]; then
-    export CLAUDEPANTHEON_DEPTH=$((CLAUDEPANTHEON_DEPTH + 1))
-    exec "${CUSTOM_ENTRYPOINT}" "$@"
+if [ "${SCRIPT_PATH}" = "${DEFAULTS_DIR}/entrypoint.sh" ]; then
+    # Update scripts from image defaults (unless .keep marker exists)
+    if [ -d "${DATA_DIR}" ] && [ ! -f "${DATA_DIR}/scripts/.keep" ]; then
+        mkdir -p "${DATA_DIR}/scripts"
+        for _SCRIPT in entrypoint.sh shell-wrapper.sh start-services.sh .zshrc; do
+            _SRC="${DEFAULTS_DIR}/${_SCRIPT}"
+            _DST="${DATA_DIR}/scripts/${_SCRIPT}"
+            if [ -f "${_SRC}" ]; then
+                cp "${_SRC}" "${_DST}"
+                case "${_SCRIPT}" in
+                    *.sh) chmod +x "${_DST}" ;;
+                esac
+            fi
+        done
+    fi
+
+    # Redirect to custom entrypoint if it exists
+    if [ -f "${CUSTOM_ENTRYPOINT}" ]; then
+        export CLAUDEPANTHEON_DEPTH=$((CLAUDEPANTHEON_DEPTH + 1))
+        exec "${CUSTOM_ENTRYPOINT}" "$@"
+    fi
 fi
 
 # Colors for output
