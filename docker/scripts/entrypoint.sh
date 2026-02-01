@@ -796,6 +796,11 @@ main() {
     check_disk_space
     init_logging
 
+    # Check for updates (respects schedule configuration)
+    if [ -f "${DATA_DIR}/scripts/auto-update.sh" ]; then
+        su -s /bin/sh ${USERNAME} -c "bash ${DATA_DIR}/scripts/auto-update.sh check" || true
+    fi
+
     # Must run as root for setup
     if [ "$(id -u)" = "0" ]; then
         setup_user_mapping
