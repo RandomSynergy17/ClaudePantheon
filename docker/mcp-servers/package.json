@@ -1,0 +1,21 @@
+{
+  "name": "claudepantheon-mcp-servers",
+  "version": "1.0.0",
+  "description": "MCP servers for cloud storage integration in ClaudePantheon",
+  "type": "module",
+  "scripts": {
+    "google-drive": "node google-drive-mcp.js",
+    "dropbox": "node dropbox-mcp.js",
+    "install-all": "npm install"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "googleapis": "^140.0.0",
+    "dropbox": "^10.34.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "ClaudePantheon",
+  "license": "MIT"
+}

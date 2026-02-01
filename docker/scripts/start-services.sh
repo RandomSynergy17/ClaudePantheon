@@ -108,9 +108,48 @@ HTPASSWD_INTERNAL="/tmp/htpasswd-internal"
 HTPASSWD_WEBROOT="/tmp/htpasswd-webroot"
 
 # Internal zone authentication
-if [ "$INTERNAL_AUTH" = "true" ] && [ -n "$INTERNAL_CREDENTIAL" ]; then
+if [ "$INTERNAL_AUTH" = "true" ]; then
+    # Validation: Credentials must be set when auth is enabled
+    if [ -z "$INTERNAL_CREDENTIAL" ]; then
+        log_error "INTERNAL_AUTH=true but INTERNAL_CREDENTIAL is not set"
+        log_error ""
+        log_error "Security requirement: Authentication cannot be enabled without credentials"
+        log_error ""
+        log_error "Fix this by either:"
+        log_error "  1. Set INTERNAL_CREDENTIAL=username:password in .env"
+        log_error "  2. Use Docker secrets (recommended for production):"
+        log_error "     mkdir -p docker/secrets"
+        log_error "     echo 'admin:strongpassword' > docker/secrets/internal_credential.txt"
+        log_error "     chmod 600 docker/secrets/internal_credential.txt"
+        log_error "  3. Set INTERNAL_AUTH=false to disable authentication"
+        log_error ""
+        exit 1
+    fi
+
+    # Validate credential format (must contain username:password)
+    if ! echo "$INTERNAL_CREDENTIAL" | grep -q ':'; then
+        log_error "INTERNAL_CREDENTIAL must be in format: username:password"
+        log_error "Current value does not contain ':' separator"
+        exit 1
+    fi
+
     INTERNAL_USER=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f1)
     INTERNAL_PASS=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f2-)
+
+    # Validate username and password are not empty
+    if [ -z "$INTERNAL_USER" ] || [ -z "$INTERNAL_PASS" ]; then
+        log_error "INTERNAL_CREDENTIAL has empty username or password"
+        log_error "Format: username:password (both parts required)"
+        exit 1
+    fi
+
+    # Warn about weak passwords
+    pass_len=${#INTERNAL_PASS}
+    if [ "$pass_len" -lt 12 ]; then
+        log_warn "INTERNAL_CREDENTIAL password is short ($pass_len chars)"
+        log_warn "Recommendation: Use at least 12 characters for security"
+        log_warn "Generate strong password: openssl rand -base64 32"
+    fi
 
     # Generate htpasswd (using openssl for password hash)
     INTERNAL_HASH=$(echo "$INTERNAL_PASS" | openssl passwd -apr1 -stdin)
@@ -126,22 +165,43 @@ fi
 if [ "$WEBROOT_AUTH" = "true" ]; then
     # Use WEBROOT_CREDENTIAL if set, otherwise fall back to INTERNAL_CREDENTIAL
     if [ -n "$WEBROOT_CREDENTIAL" ]; then
-        WEBROOT_USER=$(echo "$WEBROOT_CREDENTIAL" | cut -d: -f1)
-        WEBROOT_PASS=$(echo "$WEBROOT_CREDENTIAL" | cut -d: -f2-)
+        WEBROOT_CRED="$WEBROOT_CREDENTIAL"
+        CRED_SOURCE="WEBROOT_CREDENTIAL"
     elif [ -n "$INTERNAL_CREDENTIAL" ]; then
-        WEBROOT_USER=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f1)
-        WEBROOT_PASS=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f2-)
+        WEBROOT_CRED="$INTERNAL_CREDENTIAL"
+        CRED_SOURCE="INTERNAL_CREDENTIAL (fallback)"
+    else
+        # Validation: Credentials must be set when auth is enabled
+        log_error "WEBROOT_AUTH=true but no credentials provided"
+        log_error ""
+        log_error "Fix this by either:"
+        log_error "  1. Set WEBROOT_CREDENTIAL=username:password in .env"
+        log_error "  2. Set INTERNAL_CREDENTIAL (will be used as fallback)"
+        log_error "  3. Use Docker secrets (recommended)"
+        log_error "  4. Set WEBROOT_AUTH=false to disable authentication"
+        log_error ""
+        exit 1
     fi
 
-    if [ -n "$WEBROOT_USER" ] && [ -n "$WEBROOT_PASS" ]; then
-        WEBROOT_HASH=$(echo "$WEBROOT_PASS" | openssl passwd -apr1 -stdin)
-        echo "${WEBROOT_USER}:${WEBROOT_HASH}" > "$HTPASSWD_WEBROOT"
-        chmod 600 "$HTPASSWD_WEBROOT"
-        log_success "Webroot zone authentication enabled (user: $WEBROOT_USER)"
-    else
-        log_warn "WEBROOT_AUTH=true but no credentials provided"
-        rm -f "$HTPASSWD_WEBROOT"
+    # Validate credential format
+    if ! echo "$WEBROOT_CRED" | grep -q ':'; then
+        log_error "${CRED_SOURCE} must be in format: username:password"
+        exit 1
     fi
+
+    WEBROOT_USER=$(echo "$WEBROOT_CRED" | cut -d: -f1)
+    WEBROOT_PASS=$(echo "$WEBROOT_CRED" | cut -d: -f2-)
+
+    # Validate username and password are not empty
+    if [ -z "$WEBROOT_USER" ] || [ -z "$WEBROOT_PASS" ]; then
+        log_error "${CRED_SOURCE} has empty username or password"
+        exit 1
+    fi
+
+    WEBROOT_HASH=$(echo "$WEBROOT_PASS" | openssl passwd -apr1 -stdin)
+    echo "${WEBROOT_USER}:${WEBROOT_HASH}" > "$HTPASSWD_WEBROOT"
+    chmod 600 "$HTPASSWD_WEBROOT"
+    log_success "Webroot zone authentication enabled (user: $WEBROOT_USER, source: $CRED_SOURCE)"
 else
     rm -f "$HTPASSWD_WEBROOT"
     log_info "Webroot zone authentication disabled"

@@ -21,9 +21,30 @@
 #   All settings are controlled via .env file (see .env.example)
 #   Variables use ${VAR:-default} syntax for fallback values
 #
+# SECRETS (Recommended for Production):
+#   For sensitive data, use Docker secrets instead of environment variables.
+#   Uncomment the 'secrets:' section below and create secret files in docker/secrets/
+#   Example:
+#     mkdir -p docker/secrets
+#     echo "sk-ant-api03-..." > docker/secrets/anthropic_api_key.txt
+#     echo "admin:strongpassword" > docker/secrets/internal_credential.txt
+#     chmod 600 docker/secrets/*
+#
 # VOLUMES:
 #   - Primary data at /app/data (configured via CLAUDE_DATA_PATH)
 #   - Optional host mounts at /mounts/<name> (see volumes section)
+
+# ─────────────────────────────────────────────────────────
+# SECRETS (Optional - Recommended for Production)
+# Uncomment this section to use Docker secrets
+# ─────────────────────────────────────────────────────────
+# secrets:
+#   anthropic_api_key:
+#     file: ./secrets/anthropic_api_key.txt
+#   internal_credential:
+#     file: ./secrets/internal_credential.txt
+#   webroot_credential:
+#     file: ./secrets/webroot_credential.txt
 
 services:
   claudepantheon:
@@ -177,3 +198,12 @@ services:
       timeout: 10s                # Fail if no response in 10s
       retries: 3                  # Unhealthy after 3 failures
       start_period: 10s           # Grace period on startup
+
+    # ─────────────────────────────────────────────────────────
+    # SECRETS (Optional)
+    # Uncomment to mount Docker secrets into /run/secrets/
+    # ─────────────────────────────────────────────────────────
+    # secrets:
+    #   - anthropic_api_key
+    #   - internal_credential
+    #   - webroot_credential

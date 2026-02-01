@@ -65,6 +65,34 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# ─────────────────────────────────────────────────────────────
+# LOAD SECRETS FROM DOCKER SECRETS (if available)
+# Docker secrets are mounted at /run/secrets/ and take precedence
+# over environment variables for security
+# ─────────────────────────────────────────────────────────────
+load_secrets() {
+    # ANTHROPIC_API_KEY
+    if [ -f /run/secrets/anthropic_api_key ]; then
+        ANTHROPIC_API_KEY="$(cat /run/secrets/anthropic_api_key)"
+        export ANTHROPIC_API_KEY
+        log "Loaded ANTHROPIC_API_KEY from Docker secret"
+    fi
+
+    # INTERNAL_CREDENTIAL
+    if [ -f /run/secrets/internal_credential ]; then
+        INTERNAL_CREDENTIAL="$(cat /run/secrets/internal_credential)"
+        export INTERNAL_CREDENTIAL
+        log "Loaded INTERNAL_CREDENTIAL from Docker secret"
+    fi
+
+    # WEBROOT_CREDENTIAL
+    if [ -f /run/secrets/webroot_credential ]; then
+        WEBROOT_CREDENTIAL="$(cat /run/secrets/webroot_credential)"
+        export WEBROOT_CREDENTIAL
+        log "Loaded WEBROOT_CREDENTIAL from Docker secret"
+    fi
+}
+
 # User mapping defaults
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
@@ -392,23 +420,50 @@ install_custom_packages() {
 
         PACKAGES=""
         while IFS= read -r line || [ -n "$line" ]; do
+            # Trim leading/trailing whitespace
+            line="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
             case "$line" in
                 \#*|"") continue ;;
             esac
 
-            # Validate package name (alphanumeric, dash, underscore, dot only)
-            if ! echo "$line" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$'; then
+            # Sanitize: strip all non-allowed characters
+            clean_pkg="$(echo "$line" | tr -cd 'a-zA-Z0-9._-')"
+
+            # Validate: must match original after sanitization
+            if [ "$clean_pkg" != "$line" ]; then
                 error "Invalid package name: $line"
-                error "Only alphanumeric characters, dash, underscore, and dot allowed"
+                error "Package names must contain only alphanumeric, dash, underscore, and dot"
+                error "Found invalid characters in: $line"
                 exit 1
             fi
 
-            PACKAGES="${PACKAGES} ${line}"
+            # Validate: must start with letter, must have content
+            if ! echo "$clean_pkg" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]+$'; then
+                error "Invalid package name: $line"
+                error "Package names must start with a letter and contain at least 2 characters"
+                exit 1
+            fi
+
+            # Validate: reasonable length (Alpine packages are typically < 50 chars)
+            pkg_len=${#clean_pkg}
+            if [ "$pkg_len" -gt 100 ]; then
+                error "Invalid package name: $line"
+                error "Package name too long (max 100 characters)"
+                exit 1
+            fi
+
+            PACKAGES="${PACKAGES} ${clean_pkg}"
         done < "${DATA_DIR}/custom-packages.txt"
 
         if [ -n "${PACKAGES}" ]; then
             log "Installing packages:${PACKAGES}"
-            apk add --no-cache ${PACKAGES} || warn "Some packages failed to install"
+            if ! apk add --no-cache ${PACKAGES}; then
+                error "Failed to install one or more packages:${PACKAGES}"
+                error "Check package names in ${DATA_DIR}/custom-packages.txt"
+                error "Find valid packages at: https://pkgs.alpinelinux.org/packages"
+                exit 1
+            fi
         fi
     fi
 }
@@ -617,10 +672,46 @@ RCLONE_EOF
                 continue
             fi
 
-            # Validate mount options (whitelist: only allow safe rclone flag characters)
-            if [ -n "$MOUNT_OPTS" ] && ! echo "$MOUNT_OPTS" | grep -qE '^[a-zA-Z0-9=_./:@ -]*$'; then
-                warn "Unsafe characters in mount options for ${REMOTE_NAME}, skipping"
-                continue
+            # Validate mount options (strict whitelist approach)
+            # Only allow known-safe rclone mount flags
+            VALIDATED_OPTS=""
+            if [ -n "$MOUNT_OPTS" ]; then
+                # Split options by space and validate each flag
+                for opt in $MOUNT_OPTS; do
+                    # Allow only flags starting with -- and containing safe characters
+                    # Format: --flag-name=value or --flag-name
+                    # Block path traversal patterns (.., ./)
+                    if echo "$opt" | grep -qE '\.\./|^\.\.|/\.\.|\./$'; then
+                        warn "Path traversal attempt in mount option for ${REMOTE_NAME}: $opt"
+                        warn "Skipping mount for ${REMOTE_NAME}"
+                        continue 2
+                    fi
+                    if ! echo "$opt" | grep -qE '^--[a-z][a-z0-9-]+(=[a-zA-Z0-9._/:-]+)?$'; then
+                        warn "Invalid mount option format for ${REMOTE_NAME}: $opt"
+                        warn "Mount options must be in format: --flag-name or --flag-name=value"
+                        warn "Skipping mount for ${REMOTE_NAME}"
+                        continue 2  # Skip to next mount in outer loop
+                    fi
+
+                    # Additional validation: only allow known safe rclone mount flags
+                    flag_name="${opt%%=*}"
+                    case "$flag_name" in
+                        --vfs-cache-mode|--vfs-cache-max-age|--vfs-cache-max-size|\
+                        --vfs-read-chunk-size|--vfs-read-chunk-size-limit|\
+                        --buffer-size|--dir-cache-time|--poll-interval|\
+                        --read-only|--allow-non-empty|--default-permissions|\
+                        --log-level|--cache-dir|--attr-timeout|--timeout)
+                            # Known safe flags
+                            VALIDATED_OPTS="${VALIDATED_OPTS} ${opt}"
+                            ;;
+                        *)
+                            warn "Unknown/unsafe mount flag for ${REMOTE_NAME}: $flag_name"
+                            warn "Skipping mount for ${REMOTE_NAME}"
+                            continue 2
+                            ;;
+                    esac
+                done
+                MOUNT_OPTS="$VALIDATED_OPTS"
             fi
 
             # Check remote exists in rclone config
@@ -635,7 +726,8 @@ RCLONE_EOF
 
             _mount_total=$((_mount_total + 1))
             log "Auto-mounting rclone remote: ${REMOTE_SPEC} -> ${MOUNT_PATH}"
-            if timeout 30 su -s /bin/sh "${USERNAME}" -c "rclone mount \"${REMOTE_SPEC}\" \"${MOUNT_PATH}\" --daemon --allow-other ${MOUNT_OPTS}" 2>&1; then
+            # Use printf %s for safe string interpolation (no word splitting/globbing)
+            if timeout 30 su -s /bin/sh "${USERNAME}" -c "$(printf 'rclone mount "%s" "%s" --daemon --allow-other %s' "${REMOTE_SPEC}" "${MOUNT_PATH}" "${MOUNT_OPTS}")" 2>&1; then
                 # Verify mount succeeded (--daemon returns immediately)
                 sleep 2
                 if mountpoint -q "$MOUNT_PATH" 2>/dev/null; then
@@ -696,10 +788,18 @@ main() {
     printf "${CYAN}╚═══════════════════════════════════════════════════════════╝${NC}\n"
     printf "\n"
 
+    # Load secrets before any other operations
+    load_secrets
+
     # Early validation
     validate_data_directory
     check_disk_space
     init_logging
+
+    # Check for updates (respects schedule configuration)
+    if [ -f "${DATA_DIR}/scripts/auto-update.sh" ]; then
+        su -s /bin/sh ${USERNAME} -c "bash ${DATA_DIR}/scripts/auto-update.sh check" || true
+    fi
 
     # Must run as root for setup
     if [ "$(id -u)" = "0" ]; then

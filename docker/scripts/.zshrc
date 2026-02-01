@@ -252,6 +252,13 @@ alias cc-info='cc_settings && claude --version'
 alias cc-community='/app/data/scripts/shell-wrapper.sh --community-only'
 alias cc-factory-reset='/app/data/scripts/shell-wrapper.sh --factory-reset'
 alias cc-rmount='/app/data/scripts/shell-wrapper.sh --rmount-only'
+alias cc-update='/app/data/scripts/auto-update.sh'
+alias cc-update-status='/app/data/scripts/auto-update.sh status'
+alias cc-update-config='/app/data/scripts/auto-update.sh configure'
+alias cc-install-ai='/app/data/scripts/cli-installer.sh'
+alias cc-install-codex='/app/data/scripts/cli-installer.sh install-codex'
+alias cc-install-gemini='/app/data/scripts/cli-installer.sh install-gemini'
+
 alias cc-help='echo "
 ClaudePantheon Commands:
 
@@ -269,6 +276,16 @@ Configuration:
   cc-bypass         - Toggle bypass permissions [on|off]
   cc-settings       - Show current settings
   cc-info           - Show environment info
+
+AI CLI Tools:
+  cc-install-ai     - Install Codex/Gemini CLIs (interactive wizard)
+  cc-install-codex  - Install OpenAI Codex CLI
+  cc-install-gemini - Install Google Gemini CLI
+
+Updates:
+  cc-update         - Check for ClaudePantheon updates
+  cc-update-config  - Configure auto-update settings
+  cc-update-status  - Show update status
 
 Maintenance:
   cc-factory-reset  - Factory reset (wipe all data, fresh install)
