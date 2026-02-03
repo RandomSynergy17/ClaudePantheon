@@ -16,6 +16,24 @@ ClaudePantheon is a minimal Alpine-based Docker environment for persistent Claud
 - **Remote mounts**: rclone FUSE mounts for S3, Google Drive, SFTP, SMB, WebDAV, FTP, etc.
 - **Runtime customization**: All scripts editable without rebuild
 
+## Commit Guidelines
+
+**IMPORTANT:** When making commits to this repository, always update the changelog in [README.md](README.md) under the "Changelog" section:
+
+1. Add an entry under the current date (format: `### YYYY-MM-DD`)
+2. If the date doesn't exist, create a new date heading
+3. Use bullet points with brief, descriptive summaries of changes
+4. Group related changes together
+5. Include commit hash references where helpful
+
+Example:
+```markdown
+### 2026-02-03
+- Fix SSH authentication by unlocking user account in entrypoint.sh
+- Add Pantheon-style ASCII art to startup banner and shell MOTD
+- Exclude ssh-host-keys from FileBrowser scanner
+```
+
 ## Development Commands
 
 All commands run from the `docker/` directory:

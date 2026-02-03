@@ -1049,6 +1049,7 @@ After the reset completes, the container automatically restarts and re-initializ
 ## 📋 Changelog
 
 ### 2026-02-03
+- **Changelog directive** — Added commit guidelines to CLAUDE.md requiring changelog updates with every commit
 - **SSH key authentication fix** — Unlock user account on startup to allow SSH public key authentication (previously blocked by locked account status)
 
 ### 2026-01-31
