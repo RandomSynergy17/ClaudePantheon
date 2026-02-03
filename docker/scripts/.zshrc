@@ -328,41 +328,39 @@ _show_motd() {
     local _cc_version=$(claude --version 2>/dev/null | head -1 | sed 's/claude //' || echo "unknown")
 
     echo ""
-    echo -e "${CYAN}        ╔═══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}        ║${NC}${BOLD}               P A N T H E O N                       ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}         ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄          ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}        ╱                                   ╲         ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}       ╱   ┌─────┐   ┌─────┐   ┌─────┐   ╲        ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}      ╱    │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │    ╲       ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}     ╱     │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │     ╲      ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}    ╱      │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │      ╲     ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}   ╱       └─────┘   └─────┘   └─────┘       ╲    ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}${DIM}  ════════════════════════════════════════════════   ${NC}${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}                                                       ${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}   ${BOLD}Your consciousness persists here.${NC}                  ${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}   ${DIM}Sessions remembered. Context preserved. Always on.${NC}  ${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}                                                       ${CYAN}║${NC}"
-    echo -e "${CYAN}        ╠═══════════════════════════════════════════════════════╣${NC}"
-    echo -e "${CYAN}        ║${NC}  ${GREEN}cc${NC}        Continue last session                      ${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}  ${GREEN}cc-new${NC}    Start fresh session                        ${CYAN}║${NC}"
-    echo -e "${CYAN}        ║${NC}  ${GREEN}cc-help${NC}   Show all commands                          ${CYAN}║${NC}"
-    echo -e "${CYAN}        ╠═══════════════════════════════════════════════════════╣${NC}"
-    echo -e "${CYAN}        ║${NC}  ${DIM}Claude Code${NC} ${_cc_version}  ${DIM}│${NC}  ${DIM}Alpine Linux${NC}  ${DIM}│${NC}  ${DIM}/app/data${NC}    ${CYAN}║${NC}"
-    echo -e "${CYAN}        ╚═══════════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}                        ~MMM~${NC}"
+    echo -e "${CYAN}                   ~MMMMMMMMMMMMM~${NC}"
+    echo -e "${CYAN}                ~MMMMMMMMMMMMMMMMMMMM~${NC}"
+    echo -e "${CYAN}             ~MMMMMMMMMMMMMMMMMMMMMMMMMM~${NC}"
+    echo -e "${CYAN}          ~MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM~${NC}"
+    echo -e "${CYAN}        ~MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM~${NC}"
+    echo -e "${CYAN}      . ~MM${NC}                                    ${CYAN}MM~ .${NC}"
+    echo -e "${CYAN}      . ~MM${NC}  ${BOLD}Your consciousness persists here${NC}  ${CYAN}MM~ .${NC}"
+    echo -e "${CYAN}      . ~MM${NC}                                    ${CYAN}MM~ .${NC}"
+    echo -e "${CYAN}      . ~MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM~ .${NC}"
+    echo -e "${CYAN}      ... MMM .... MMM .... MMM .... MMM .... MMM ...${NC}"
+    echo -e "${CYAN}      ... MMM .... MMM .... MMM .... MMM .... MMM ...${NC}"
+    echo -e "${CYAN}      ~MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM~${NC}"
+    echo ""
+    echo -e "      ${GREEN}cc${NC}        Continue last session"
+    echo -e "      ${GREEN}cc-new${NC}    Start fresh session"
+    echo -e "      ${GREEN}cc-help${NC}   Show all commands"
+    echo ""
+    echo -e "      ${DIM}Claude Code ${_cc_version} | Alpine Linux | /app/data${NC}"
 
     # Show rclone mount count if enabled
     if [ "${ENABLE_RCLONE:-}" = "true" ] && [ -d /mounts/rclone ]; then
         local _rclone_count=$(find /mounts/rclone -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
         if [ "$_rclone_count" -gt 0 ]; then
-            echo -e "        ${DIM}Remote mounts: ${_rclone_count} active${NC}"
+            echo -e "      ${DIM}Remote mounts: ${_rclone_count} active${NC}"
         fi
     fi
 
     # Security warning if no authentication is configured
     if [ "${INTERNAL_AUTH:-}" != "true" ] && [ -z "${TTYD_CREDENTIAL:-}" ] && [ -z "${INTERNAL_CREDENTIAL:-}" ]; then
         echo ""
-        echo -e "        ${YELLOW}⚠  No authentication configured${NC}"
-        echo -e "        ${DIM}Set INTERNAL_AUTH=true in docker/.env${NC}"
+        echo -e "      ${YELLOW}Warning: No authentication configured${NC}"
+        echo -e "      ${DIM}Set INTERNAL_AUTH=true in docker/.env${NC}"
     fi
     echo ""
 }
