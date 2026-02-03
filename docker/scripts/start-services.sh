@@ -268,6 +268,7 @@ if [ "$ENABLE_FILEBROWSER" != "false" ]; then
     # Create minimal config file for FileBrowser Quantum
     # Using correct YAML structure based on official docs
     # baseURL must match nginx location - nginx no longer strips prefix
+    # Exclude ssh-host-keys (root-only) to avoid permission errors in scanner
     cat > "$FB_CONFIG" << EOF
 server:
   port: 7683
@@ -278,6 +279,9 @@ server:
     - path: $DATA_DIR
       config:
         defaultEnabled: true
+indexing:
+  excludePaths:
+    - ssh-host-keys
 EOF
 
     # Start FileBrowser Quantum from its config directory
