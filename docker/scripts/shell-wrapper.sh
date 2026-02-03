@@ -588,11 +588,15 @@ cc-help       # Show all commands
 CLAUDE_MD
 
     # Substitute placeholders with actual values using sed
+    # Sanitize user input to prevent sed injection (escape | & \ characters)
+    local safe_workspace_name=$(printf '%s' "$workspace_name" | sed 's/[|&\\]/\\&/g')
+    local safe_primary_purpose=$(printf '%s' "$primary_purpose" | sed 's/[|&\\]/\\&/g')
+    local safe_user_context=$(printf '%s' "$user_context" | sed 's/[|&\\]/\\&/g')
     # Using | as delimiter to avoid conflicts with / in paths
-    sed -i "s|__WORKSPACE_NAME__|${workspace_name}|g" "${CLAUDE_MD_PATH}"
+    sed -i "s|__WORKSPACE_NAME__|${safe_workspace_name}|g" "${CLAUDE_MD_PATH}"
     sed -i "s|__TIMESTAMP__|${_timestamp}|g" "${CLAUDE_MD_PATH}"
-    sed -i "s|__PRIMARY_PURPOSE__|${primary_purpose}|g" "${CLAUDE_MD_PATH}"
-    sed -i "s|__USER_CONTEXT__|${user_context}|g" "${CLAUDE_MD_PATH}"
+    sed -i "s|__PRIMARY_PURPOSE__|${safe_primary_purpose}|g" "${CLAUDE_MD_PATH}"
+    sed -i "s|__USER_CONTEXT__|${safe_user_context}|g" "${CLAUDE_MD_PATH}"
     # Multi-line substitutions use a temp approach
     local _tmpfile
     _tmpfile=$(mktemp)

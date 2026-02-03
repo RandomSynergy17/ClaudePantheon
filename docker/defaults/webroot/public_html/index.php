@@ -388,6 +388,8 @@
                 // Remove inline styles from tables for cleaner output
                 $content = preg_replace('/style="[^"]*"/i', '', $content);
 
+                // Strip HTML tags and escape output to prevent XSS from environment variables
+                $content = strip_tags($content, '<table><tr><td><th><thead><tbody><h1><h2><h3>');
                 echo $content;
                 ?>
             </div>

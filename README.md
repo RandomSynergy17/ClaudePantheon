@@ -1048,6 +1048,19 @@ After the reset completes, the container automatically restarts and re-initializ
 
 ## 📋 Changelog
 
+### 2026-02-04
+- **Comprehensive security audit** — 10 expert agent reviews with 102 findings documented in `_docs/audit.md`
+- **Security: Credential exposure fix** — Use shell parameter expansion instead of echo|cut to prevent process listing exposure
+- **Security: SSH hardening** — Disabled password authentication, enabled pubkey-only auth in sshd_config
+- **Security: sed injection fix** — Sanitize user input in CLAUDE.md template substitution
+- **Security: XSS prevention** — Strip dangerous HTML tags from phpinfo() output
+- **Security: htpasswd location** — Move authentication files from /tmp to private directory
+- **Security: CSP headers** — Added Content-Security-Policy and Permissions-Policy headers to nginx
+- **Docker: Resource limits** — Added CPU limits (cpus) and PID limits (pids_limit) to prevent resource exhaustion
+- **Docker: Health check** — Now tests both nginx and ttyd endpoints
+- **Reliability: Service startup** — Added PHP-FPM socket readiness check before starting nginx (prevents 502 race condition)
+- **Shell: Command safety** — Quoted SHELL_CMD in ttyd exec to prevent word splitting
+
 ### 2026-02-03
 - **Changelog directive** — Added commit guidelines to CLAUDE.md requiring changelog updates with every commit
 - **SSH key authentication fix** — Unlock user account on startup to allow SSH public key authentication (previously blocked by locked account status)

@@ -103,14 +103,18 @@ if [ -n "$TTYD_CREDENTIAL" ] && [ -z "$INTERNAL_CREDENTIAL" ]; then
     INTERNAL_CREDENTIAL="$TTYD_CREDENTIAL"
 fi
 
-# Create htpasswd files
-HTPASSWD_INTERNAL="/tmp/htpasswd-internal"
-HTPASSWD_WEBROOT="/tmp/htpasswd-webroot"
+# Create private directory for htpasswd files (avoid world-writable /tmp)
+AUTH_DIR="/tmp/nginx-auth-$$"
+mkdir -p "$AUTH_DIR"
+chmod 700 "$AUTH_DIR"
+HTPASSWD_INTERNAL="$AUTH_DIR/htpasswd-internal"
+HTPASSWD_WEBROOT="$AUTH_DIR/htpasswd-webroot"
 
 # Internal zone authentication
 if [ "$INTERNAL_AUTH" = "true" ] && [ -n "$INTERNAL_CREDENTIAL" ]; then
-    INTERNAL_USER=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f1)
-    INTERNAL_PASS=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f2-)
+    # Use shell parameter expansion to avoid credential exposure in process listing
+    INTERNAL_USER="${INTERNAL_CREDENTIAL%%:*}"
+    INTERNAL_PASS="${INTERNAL_CREDENTIAL#*:}"
 
     # Generate htpasswd (using openssl for password hash)
     INTERNAL_HASH=$(echo "$INTERNAL_PASS" | openssl passwd -apr1 -stdin)
@@ -125,12 +129,13 @@ fi
 # Webroot zone authentication
 if [ "$WEBROOT_AUTH" = "true" ]; then
     # Use WEBROOT_CREDENTIAL if set, otherwise fall back to INTERNAL_CREDENTIAL
+    # Use shell parameter expansion to avoid credential exposure in process listing
     if [ -n "$WEBROOT_CREDENTIAL" ]; then
-        WEBROOT_USER=$(echo "$WEBROOT_CREDENTIAL" | cut -d: -f1)
-        WEBROOT_PASS=$(echo "$WEBROOT_CREDENTIAL" | cut -d: -f2-)
+        WEBROOT_USER="${WEBROOT_CREDENTIAL%%:*}"
+        WEBROOT_PASS="${WEBROOT_CREDENTIAL#*:}"
     elif [ -n "$INTERNAL_CREDENTIAL" ]; then
-        WEBROOT_USER=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f1)
-        WEBROOT_PASS=$(echo "$INTERNAL_CREDENTIAL" | cut -d: -f2-)
+        WEBROOT_USER="${INTERNAL_CREDENTIAL%%:*}"
+        WEBROOT_PASS="${INTERNAL_CREDENTIAL#*:}"
     fi
 
     if [ -n "$WEBROOT_USER" ] && [ -n "$WEBROOT_PASS" ]; then
@@ -240,6 +245,19 @@ else
     exit 1
 fi
 
+# Wait for PHP-FPM socket to be ready (prevents race condition with nginx)
+log_info "Waiting for PHP-FPM socket..."
+for i in $(seq 1 20); do
+    if nc -z 127.0.0.1 9000 2>/dev/null; then
+        break
+    fi
+    sleep 0.25
+done
+if ! nc -z 127.0.0.1 9000 2>/dev/null; then
+    log_error "PHP-FPM not listening on port 9000 after 5 seconds"
+    exit 1
+fi
+
 # ─────────────────────────────────────────────────────────────
 # START NGINX
 # ─────────────────────────────────────────────────────────────
@@ -334,4 +352,5 @@ echo "  Terminal:      http://localhost:7681/terminal/"
 echo ""
 
 # Run ttyd in foreground (container dies if ttyd dies)
-exec $TTYD_CMD $SHELL_CMD
+# Quote SHELL_CMD to prevent word splitting
+exec $TTYD_CMD "$SHELL_CMD"

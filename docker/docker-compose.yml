@@ -149,6 +149,8 @@ services:
     # ─────────────────────────────────────────────────────────
     mem_limit: ${MEMORY_LIMIT:-4G}        # Hard memory limit
     memswap_limit: ${MEMORY_LIMIT:-4G}    # Swap limit (same = no swap)
+    cpus: ${CPU_LIMIT:-2.0}               # CPU limit (prevents runaway processes)
+    pids_limit: 512                        # Prevent fork bombs
 
     # ─────────────────────────────────────────────────────────
     # SECURITY

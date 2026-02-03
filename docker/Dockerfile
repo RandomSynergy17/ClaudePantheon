@@ -141,7 +141,8 @@ RUN mkdir -p /var/lib/nginx/logs && chown -R ${USER_UID}:${USER_GID} /var/lib/ng
 RUN mkdir -p /var/run/sshd \
     && ssh-keygen -A \
     && sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config \
-    && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config \
+    && sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 
 # ─────────────────────────────────────────────────────────────
 # USER ENVIRONMENT SETUP
@@ -239,7 +240,7 @@ EXPOSE 7681 22
 # Checks: ttyd responding + Claude Code installed
 # ─────────────────────────────────────────────────────────────
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget -q --spider http://localhost:7681/health
+    CMD wget -q --spider http://localhost:7681/health && wget -q --spider http://localhost:7682/ || exit 1
 
 # ─────────────────────────────────────────────────────────────
 # ENTRYPOINT
