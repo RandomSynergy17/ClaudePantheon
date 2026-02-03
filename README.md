@@ -1046,6 +1046,13 @@ After the reset completes, the container automatically restarts and re-initializ
 
 ---
 
+## 📋 Changelog
+
+### 2026-02-03
+- **SSH key authentication fix** — Unlock user account on startup to allow SSH public key authentication (previously blocked by locked account status)
+
+---
+
 ## 📄 License
 
 MIT — Do whatever you want with it!

@@ -460,6 +460,14 @@ setup_ssh() {
         chmod 700 "${SSH_HOST_KEYS_DIR}"
         find "${SSH_HOST_KEYS_DIR}" -type f -name "*.pub" -exec chmod 644 {} \;
         find "${SSH_HOST_KEYS_DIR}" -type f ! -name "*.pub" -exec chmod 600 {} \;
+
+        # Unlock user for SSH key authentication (change ! to * in shadow)
+        # This allows pubkey auth while keeping password login disabled
+        if grep -q "^${USERNAME}:!" /etc/shadow 2>/dev/null; then
+            sed -i "s/^${USERNAME}:!/${USERNAME}:*/" /etc/shadow
+            log "Unlocked ${USERNAME} account for SSH key authentication"
+        fi
+
         log "Starting SSH server..."
         /usr/sbin/sshd || warn "Failed to start SSH server"
     fi
