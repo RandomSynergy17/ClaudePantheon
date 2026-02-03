@@ -1064,18 +1064,34 @@ After the reset completes, the container automatically restarts and re-initializ
 ### 2026-01-29
 - **Default editor** — Changed from vim to nano for better accessibility
 - **Health endpoint** — Added `/health` for Docker healthchecks with auth
+- **Pantheon TV show reference** — Added name inspiration to README
 - **Multiple bug fixes:**
   - Claude Code binary detection path
-  - nginx permission warnings
+  - nginx permission warnings and dav_ext module loading
   - Service log color rendering
   - False "no authentication" warning
-  - nginx dav_ext module loading
   - Script update race condition
   - Auth config special character handling
+  - Always update scripts from image defaults on container start
 
 ### 2026-01-28
 - **GHCR deployment** — GitHub Actions CI/CD for automatic image builds
 - **Comprehensive documentation** — Full configuration reference in README
+
+### 2026-01-27
+- **Multi-service architecture** — nginx reverse proxy routing all services via single port
+- **FileBrowser Quantum** — Optional web file manager at `/files/`
+
+### 2026-01-26
+- **Native Claude Code installer** — Switched from npm to official installer
+- **PATH fixes** — Use `~/.local/bin` for Claude Code binary
+- **Build fixes** — Resolve macOS UID/GID conflicts, node:alpine conflicts
+- **ttyd terminal** — Fixed terminal issues, updated branding
+- **README enhancements** — Use cases, benefits, better formatting
+
+### 2026-01-25
+- **Initial release** — First public version
+- **DevOps review fixes** — Runtime settings, major refactoring
 
 ---
 
