@@ -63,6 +63,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m'
 
 # User mapping defaults
@@ -698,10 +700,20 @@ start_services() {
 # Main execution
 main() {
     printf "\n"
-    printf "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${CYAN}║                    ClaudePantheon                         ║${NC}\n"
-    printf "${CYAN}║              A RandomSynergy Production                    ║${NC}\n"
-    printf "${CYAN}╚═══════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${CYAN}        ╔═══════════════════════════════════════════════════════╗${NC}\n"
+    printf "${CYAN}        ║${NC}${BOLD}               P A N T H E O N                       ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}         ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄          ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}        ╱                                   ╲         ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}       ╱   ┌─────┐   ┌─────┐   ┌─────┐   ╲        ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}      ╱    │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │    ╲       ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}     ╱     │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │     ╲      ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}    ╱      │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │      ╲     ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}   ╱       └─────┘   └─────┘   └─────┘       ╲    ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}${DIM}  ════════════════════════════════════════════════   ${NC}${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}                                                       ${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}   ${BOLD}ClaudePantheon${NC}${DIM} — A RandomSynergy Production${NC}       ${CYAN}║${NC}\n"
+    printf "${CYAN}        ║${NC}   ${DIM}Your consciousness persists here.${NC}                  ${CYAN}║${NC}\n"
+    printf "${CYAN}        ╚═══════════════════════════════════════════════════════╝${NC}\n"
     printf "\n"
 
     # Early validation
