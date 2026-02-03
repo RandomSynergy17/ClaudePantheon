@@ -1051,6 +1051,32 @@ After the reset completes, the container automatically restarts and re-initializ
 ### 2026-02-03
 - **SSH key authentication fix** — Unlock user account on startup to allow SSH public key authentication (previously blocked by locked account status)
 
+### 2026-01-31
+- **404 page improvements** — Global 404 handling with themed error page
+- **WebDAV security** — Added subdirectory restrictions for sensitive paths
+- **Security hardening** — Multiple security fixes and documentation alignment
+
+### 2026-01-30
+- **Community content installer** — `cc-community` command for installing slash commands and rules
+- **MCP auto-configuration** — Interactive setup for GitHub, Brave Search, PostgreSQL, and more
+- **Factory reset** — `cc-factory-reset` with three-stage confirmation
+
+### 2026-01-29
+- **Default editor** — Changed from vim to nano for better accessibility
+- **Health endpoint** — Added `/health` for Docker healthchecks with auth
+- **Multiple bug fixes:**
+  - Claude Code binary detection path
+  - nginx permission warnings
+  - Service log color rendering
+  - False "no authentication" warning
+  - nginx dav_ext module loading
+  - Script update race condition
+  - Auth config special character handling
+
+### 2026-01-28
+- **GHCR deployment** — GitHub Actions CI/CD for automatic image builds
+- **Comprehensive documentation** — Full configuration reference in README
+
 ---
 
 ## 📄 License
