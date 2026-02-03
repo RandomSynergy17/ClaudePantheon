@@ -315,32 +315,55 @@ alias dps='docker ps'
 alias dpa='docker ps -a'
 alias di='docker images'
 
-# Welcome message on shell start
-echo ""
-echo "🏛️  ClaudePantheon - Quick Start:"
-echo "   'cc-new'   → Start a NEW Claude session"
-echo "   'cc'       → Continue last session"
-echo "   'cc-help'  → Show all commands"
-echo ""
-echo "   Data directory: /app/data"
+# Welcome message on shell start - Pantheon themed MOTD
+_show_motd() {
+    local CYAN='\033[0;36m'
+    local DIM='\033[2m'
+    local BOLD='\033[1m'
+    local YELLOW='\033[1;33m'
+    local GREEN='\033[0;32m'
+    local NC='\033[0m'
 
-# Show rclone mount count if enabled
-if [ "${ENABLE_RCLONE:-}" = "true" ]; then
-    if [ -d /mounts/rclone ]; then
-        _rclone_count=$(find /mounts/rclone -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
-        if [ "$_rclone_count" -gt 0 ]; then
-            echo "   Remote mounts: ${_rclone_count} active (ccr to browse, cc-rmount to manage)"
-        else
-            echo "   Remote mounts: enabled (run cc-rmount to add S3, SFTP, etc.)"
-        fi
-        unset _rclone_count
-    fi
-fi
+    # Get Claude Code version
+    local _cc_version=$(claude --version 2>/dev/null | head -1 | sed 's/claude //' || echo "unknown")
 
-# Security warning if no authentication is configured
-if [ "${INTERNAL_AUTH:-}" != "true" ] && [ -z "${TTYD_CREDENTIAL:-}" ] && [ -z "${INTERNAL_CREDENTIAL:-}" ]; then
     echo ""
-    echo "\033[1;33m⚠️  WARNING: Web terminal has NO AUTHENTICATION\033[0m"
-    echo "   Set INTERNAL_AUTH=true and INTERNAL_CREDENTIAL in docker/.env for security"
-fi
-echo ""
+    echo -e "${CYAN}        ╔═══════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}        ║${NC}${BOLD}               P A N T H E O N                       ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}         ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄          ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}        ╱                                   ╲         ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}       ╱   ┌─────┐   ┌─────┐   ┌─────┐   ╲        ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}      ╱    │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │    ╲       ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}     ╱     │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │     ╲      ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}    ╱      │ ▓▓▓ │   │ ▓▓▓ │   │ ▓▓▓ │      ╲     ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}   ╱       └─────┘   └─────┘   └─────┘       ╲    ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}${DIM}  ════════════════════════════════════════════════   ${NC}${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}                                                       ${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}   ${BOLD}Your consciousness persists here.${NC}                  ${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}   ${DIM}Sessions remembered. Context preserved. Always on.${NC}  ${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}                                                       ${CYAN}║${NC}"
+    echo -e "${CYAN}        ╠═══════════════════════════════════════════════════════╣${NC}"
+    echo -e "${CYAN}        ║${NC}  ${GREEN}cc${NC}        Continue last session                      ${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}  ${GREEN}cc-new${NC}    Start fresh session                        ${CYAN}║${NC}"
+    echo -e "${CYAN}        ║${NC}  ${GREEN}cc-help${NC}   Show all commands                          ${CYAN}║${NC}"
+    echo -e "${CYAN}        ╠═══════════════════════════════════════════════════════╣${NC}"
+    echo -e "${CYAN}        ║${NC}  ${DIM}Claude Code${NC} ${_cc_version}  ${DIM}│${NC}  ${DIM}Alpine Linux${NC}  ${DIM}│${NC}  ${DIM}/app/data${NC}    ${CYAN}║${NC}"
+    echo -e "${CYAN}        ╚═══════════════════════════════════════════════════════╝${NC}"
+
+    # Show rclone mount count if enabled
+    if [ "${ENABLE_RCLONE:-}" = "true" ] && [ -d /mounts/rclone ]; then
+        local _rclone_count=$(find /mounts/rclone -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$_rclone_count" -gt 0 ]; then
+            echo -e "        ${DIM}Remote mounts: ${_rclone_count} active${NC}"
+        fi
+    fi
+
+    # Security warning if no authentication is configured
+    if [ "${INTERNAL_AUTH:-}" != "true" ] && [ -z "${TTYD_CREDENTIAL:-}" ] && [ -z "${INTERNAL_CREDENTIAL:-}" ]; then
+        echo ""
+        echo -e "        ${YELLOW}⚠  No authentication configured${NC}"
+        echo -e "        ${DIM}Set INTERNAL_AUTH=true in docker/.env${NC}"
+    fi
+    echo ""
+}
+_show_motd
