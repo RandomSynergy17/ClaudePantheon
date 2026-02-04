@@ -72,6 +72,7 @@ cc              # Continue last session (most recent)
 cc-new          # Start fresh session
 cc-resume       # Resume a session (interactive picker)
 cc-list         # Resume a session (interactive picker, same as cc-resume)
+cc-help         # Show help and available commands
 cc-setup        # Run CLAUDE.md setup wizard
 cc-mcp          # Manage MCP servers
 cc-community      # Install community skills, commands & rules

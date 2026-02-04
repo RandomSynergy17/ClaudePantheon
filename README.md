@@ -256,7 +256,7 @@ All configuration is done through `docker/.env` (copy from `.env.example`). Chan
 | `ENABLE_FILEBROWSER` | `true` | Web file manager at `/files/` |
 | `ENABLE_WEBDAV` | `false` | WebDAV endpoint at `/webdav/` |
 | `ENABLE_RCLONE` | `false` | rclone remote mounts (requires FUSE in docker-compose.yml) |
-| `ENABLE_SSH` | *(empty)* | Set to any value (e.g., `true`) to enable SSH on port 2222 |
+| `ENABLE_SSH` | *(empty)* | Set to exactly `true` to enable SSH on port 2222 (pubkey auth only) |
 | `LOG_TO_FILE` | `false` | Write logs to `$CLAUDE_DATA_PATH/logs/claudepantheon.log`. Auto-rotates at 10MB |
 
 #### System
@@ -265,6 +265,8 @@ All configuration is done through `docker/.env` (copy from `.env.example`). Chan
 |----------|---------|-------------|
 | `TZ` | `UTC` | Timezone ([list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)) |
 | `MEMORY_LIMIT` | `4G` | Container memory limit. Increase for large codebases or many MCP servers |
+| `CPU_LIMIT` | `2.0` | Container CPU limit (number of cores). Prevents runaway processes |
+| `CLAUDE_CODE_SHELL` | `/bin/zsh` | Shell used for Claude Code commands (set automatically) |
 
 ---
 
@@ -1056,10 +1058,21 @@ After the reset completes, the container automatically restarts and re-initializ
 - **Security: XSS prevention** — Strip dangerous HTML tags from phpinfo() output
 - **Security: htpasswd location** — Move authentication files from /tmp to private directory
 - **Security: CSP headers** — Added Content-Security-Policy and Permissions-Policy headers to nginx
+- **Security: Rate limiting** — Added rate limiting to webroot authentication zone
+- **Security: WebDAV limits** — Set 10GB upload limit (was unlimited)
+- **Security: rclone validation** — Block dangerous flags (--rc, --config, --password-command) in mount options
 - **Docker: Resource limits** — Added CPU limits (cpus) and PID limits (pids_limit) to prevent resource exhaustion
 - **Docker: Health check** — Now tests both nginx and ttyd endpoints
 - **Reliability: Service startup** — Added PHP-FPM socket readiness check before starting nginx (prevents 502 race condition)
+- **Reliability: rclone.conf** — Atomic file creation with secure permissions (umask 077)
+- **Reliability: Claude Code verification** — Verify binary is functional after installation
+- **Reliability: rclone mount logging** — Persist mount failures to logs/rclone-mount-errors.log
 - **Shell: Command safety** — Quoted SHELL_CMD in ttyd exec to prevent word splitting
+- **Shell: nginx temp dirs** — Create with mode 700 instead of default permissions
+- **Shell: FileBrowser proxy** — Disable buffering for large file streaming
+- **Documentation: cc-help** — Added cc-help command to alias documentation
+- **Documentation: CPU_LIMIT** — Added CPU_LIMIT and CLAUDE_CODE_SHELL env vars
+- **Documentation: ENABLE_SSH** — Clarified requires exactly "true" value
 
 ### 2026-02-03
 - **Changelog directive** — Added commit guidelines to CLAUDE.md requiring changelog updates with every commit

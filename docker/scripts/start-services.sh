@@ -196,8 +196,8 @@ else
     log_success "WebDAV enabled at /webdav/"
 fi
 
-# Create nginx temp directories
-mkdir -p /tmp/nginx-client-body /tmp/nginx-proxy /tmp/nginx-fastcgi /tmp/nginx-uwsgi /tmp/nginx-scgi
+# Create nginx temp directories with restricted permissions
+mkdir -p -m 700 /tmp/nginx-client-body /tmp/nginx-proxy /tmp/nginx-fastcgi /tmp/nginx-uwsgi /tmp/nginx-scgi
 
 # ─────────────────────────────────────────────────────────────
 # PHP-FPM CONFIGURATION

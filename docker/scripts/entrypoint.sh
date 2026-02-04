@@ -429,6 +429,12 @@ verify_claude() {
         log "Claude Code installed successfully"
     fi
 
+    # Verify Claude Code binary is functional (not just present)
+    if ! su -s /bin/sh ${USERNAME} -c "${CLAUDE_BIN} --version" >/dev/null 2>&1; then
+        error "Claude Code binary exists but is not functional"
+        exit 1
+    fi
+
     # Get version
     VERSION=$(su -s /bin/sh ${USERNAME} -c "${CLAUDE_BIN} --version 2>/dev/null" || echo 'unknown')
     log "Claude Code version: ${VERSION}"
@@ -487,9 +493,9 @@ setup_rclone() {
     mkdir -p /mounts/rclone
     chown "${PUID}:${PGID}" /mounts/rclone
 
-    # Create default rclone config if missing
+    # Create default rclone config if missing (atomic creation with secure permissions)
     if [ ! -f "${DATA_DIR}/rclone/rclone.conf" ]; then
-        touch "${DATA_DIR}/rclone/rclone.conf"
+        (umask 077; touch "${DATA_DIR}/rclone/rclone.conf")
         chown "${PUID}:${PGID}" "${DATA_DIR}/rclone/rclone.conf"
         log "Created empty rclone.conf"
     fi
@@ -628,9 +634,17 @@ RCLONE_EOF
             fi
 
             # Validate mount options (whitelist: only allow safe rclone flag characters)
-            if [ -n "$MOUNT_OPTS" ] && ! echo "$MOUNT_OPTS" | grep -qE '^[a-zA-Z0-9=_./:@ -]*$'; then
-                warn "Unsafe characters in mount options for ${REMOTE_NAME}, skipping"
-                continue
+            if [ -n "$MOUNT_OPTS" ]; then
+                # Check for safe characters
+                if ! echo "$MOUNT_OPTS" | grep -qE '^[a-zA-Z0-9=_./:@ -]*$'; then
+                    warn "Unsafe characters in mount options for ${REMOTE_NAME}, skipping"
+                    continue
+                fi
+                # Block dangerous flags (rc server, config overrides, privilege escalation)
+                if echo "$MOUNT_OPTS" | grep -qEi -- '--rc|--config|--password-command|--ask-password'; then
+                    warn "Blocked dangerous flag in mount options for ${REMOTE_NAME}, skipping"
+                    continue
+                fi
             fi
 
             # Check remote exists in rclone config
@@ -645,6 +659,10 @@ RCLONE_EOF
 
             _mount_total=$((_mount_total + 1))
             log "Auto-mounting rclone remote: ${REMOTE_SPEC} -> ${MOUNT_PATH}"
+            # Log mount errors to persistent file for later debugging
+            RCLONE_ERROR_LOG="${DATA_DIR}/logs/rclone-mount-errors.log"
+            mkdir -p "$(dirname "$RCLONE_ERROR_LOG")"
+
             if timeout 30 su -s /bin/sh "${USERNAME}" -c "rclone mount \"${REMOTE_SPEC}\" \"${MOUNT_PATH}\" --daemon --allow-other ${MOUNT_OPTS}" 2>&1; then
                 # Verify mount succeeded (--daemon returns immediately)
                 sleep 2
@@ -653,6 +671,7 @@ RCLONE_EOF
                     _mount_success=$((_mount_success + 1))
                 else
                     warn "Mount command succeeded but mountpoint not active: ${REMOTE_SPEC}"
+                    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ${REMOTE_SPEC} - mountpoint not active after daemon start" >> "$RCLONE_ERROR_LOG"
                     # Kill orphaned rclone daemon for this failed mount
                     # Use fixed-string grep to find exact PID, avoiding regex injection
                     _orphan_pids=$(ps aux 2>/dev/null | grep -F "rclone mount" | grep -F -- "$MOUNT_PATH" | grep -v grep | awk '{print $2}')
@@ -663,6 +682,7 @@ RCLONE_EOF
                 fi
             else
                 warn "Failed to mount ${REMOTE_SPEC} (timed out or error)"
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: ${REMOTE_SPEC} - mount command timed out or errored" >> "$RCLONE_ERROR_LOG"
             fi
         done < "${DATA_DIR}/rclone/automount.conf"
 
